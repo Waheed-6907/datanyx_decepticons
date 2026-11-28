@@ -36,7 +36,7 @@
   </div>
   <script type="module">
     import { LANGS, RTL, T, STAGE_TEXT, treatmentKeys, PHASE_KEY } from "/static/i18n.js";
-    import { createAnatomyViewer, STAGE_DETAIL, SEG_NAME, LOBE_NAME } from "/static/anatomy.js";
+    import { createAnatomyViewer, STAGE_DETAIL, SEG_NAME, LOBE_NAME } from "/static/anatomy3d.js";
     const HEX = { CL: "#64748B", CE1: "#DC4B3E", CE2: "#DC4B3E", CE3a: "#D97706", CE3b: "#D97706", CE4: "#2563EB", CE5: "#2563EB" };
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const token = location.pathname.split("/").pop();

@@ -1,7 +1,7 @@
 import { createCystViewer } from "/static/cyst3d.js";
 import { createGraph } from "/static/graph3d.js";
 import { createBodyViewer } from "/static/xray.js";
-import { createAnatomyViewer, LOBE_NAME, SEG_NAME } from "/static/anatomy.js";
+import { createAnatomyViewer, LOBE_NAME, SEG_NAME } from "/static/anatomy3d.js";
 import * as S from "/static/store.js";
 import { renderDoctor, renderPatient } from "/static/dashboard.js";
 
