@@ -68,6 +68,12 @@ create table if not exists public.assessments (
 create index if not exists assessments_patient_idx on public.assessments (patient_code, exam_date);
 create index if not exists assessments_email_idx on public.assessments (lower(patient_email));
 
+-- ---------- API grants (RLS still decides which rows; these only let signed-in users reach the tables) ----------
+grant usage on schema public to anon, authenticated;
+grant select, update on public.profiles to authenticated;
+grant select, insert, update on public.assessments to authenticated;
+-- app_settings is deliberately NOT granted: only the trigger (security definer) reads the doctor code
+
 -- ---------- row level security ----------
 alter table public.profiles enable row level security;
 alter table public.assessments enable row level security;
