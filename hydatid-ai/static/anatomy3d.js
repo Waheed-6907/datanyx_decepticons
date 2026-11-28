@@ -363,7 +363,7 @@ export function createAnatomyViewer(el, opts = {}) {
   // real lung anatomy (Visible Human female lobes, from NIH 3D, HRA reference organ) when the model loads
   const LOBE_NODE = { RUL: "VH_F_R_lung_upper_lobe", RML: "VH_F_R_lung_middle_lobe", RLL: "VH_F_R_lung_lower_lobe", LUL: "VH_F_L_lung_upper_lobe", LLL: "VH_F_L_lung_lower_lobe" };
   const lobeMat = (k, on) => new THREE.MeshPhysicalMaterial({ color: new THREE.Color(on ? "#ffb9a8" : "#e6a197"), roughness: 0.55, sheen: 0.6,
-    sheenColor: new THREE.Color("#ffd6cf"), sheenRoughness: 0.5, clearcoat: 0.2, transparent: true, opacity: on ? 0.5 : 0.36, depthWrite: false,
+    sheenColor: new THREE.Color("#ffd6cf"), sheenRoughness: 0.5, clearcoat: 0.2, transparent: true, opacity: on ? 0.2 : 0.36, depthWrite: false,
     emissive: new THREE.Color(on ? "#4a1a14" : "#000000") });
   new GLTFLoader().load("/static/models/lung-male-nih.glb", (gltf) => {
     const root = gltf.scene;
