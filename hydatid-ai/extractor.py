@@ -20,6 +20,7 @@ PATTERNS = {
     "septations": r"septat|honey ?comb|multi[- ]?loculat|multi[- ]?vesicular|rosette|cartwheel",
     "daughter_cysts": r"daughter (?:cyst|vesicle)s?",
     "detached_membrane": r"(?:detached|floating|undulating|collapsed) (?:laminated )?membrane|membrane (?:is )?detach|water[- ]?lil(?:y|ies)|serpent sign|snake sign",
+    "multiple_membranes": r"multiple (?:detached |floating |laminated |collapsed )?membranes|several (?:detached |floating |laminated )?membranes|multiple (?:detached )?membranous",
     "solid_matrix": r"solid (?:matrix|component|content)|echogenic matrix|heterogeneous matrix|mixed echogenic",
     "ball_of_wool": r"ball[- ]of[- ]wool|wool|canalicular|serpiginous|heterogeneous (?:solid |degenerat\w* )?content",
     "complicated": r"ruptur|infected|abscess|cysto[- ]?biliary|biliary communication|bile leak|fistula",

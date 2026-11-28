@@ -47,4 +47,5 @@ def empty_case():
     case[ORGAN] = UNKNOWN
     case["segment"] = None   # Couinaud liver segment I-VIII (optional)
     case["lobe"] = None      # lung lobe: RUL, RML, RLL, LUL, LLL (optional)
+    case["multiple_membranes"] = UNKNOWN   # several detached membranes (CE3b), not a model feature
     return case
