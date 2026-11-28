@@ -71,7 +71,8 @@ export async function renderDoctor(root, ctx) {
               <td><span class="stg-pill" style="background:${HEX[r.final_stage] || "#64748B"}">${esc(r.final_stage)}</span>${r.complicated ? ` <span class="small" style="color:#B91C1C">⚠ complication</span>` : ""}</td>
               <td>${r.size_cm ? esc(r.size_cm) + " cm" : "–"}</td>
               <td>${fmt(r.exam_date)}</td>
-              <td><button class="btn" data-open="${esc(r.patient_code)}">Open</button></td></tr>`).join("")}
+              <td><div class="row-btns"><button class="btn" data-open="${esc(r.patient_code)}">Open</button>
+                <button class="btn btn-ghost" data-qr="${esc(r.patient_code)}" data-email="${esc(r.patient_email || "")}">QR</button></div></td></tr>`).join("")}
           </tbody></table>` : `<div class="empty-note">No patients yet. Run an assessment and confirm it to start the queue.</div>`}
         </div>
 
@@ -87,7 +88,9 @@ export async function renderDoctor(root, ctx) {
     </div>`;
   root.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => go(b.dataset.go)));
   root.querySelectorAll("[data-open]").forEach((b) => (b.onclick = () => openTwin(b.dataset.open)));
+  root.querySelectorAll("[data-qr]").forEach((b) => (b.onclick = () => passModal(b.dataset.qr, b.dataset.email)));
   await renderContact(root, ctx, my);
+  await renderPasses(root, ctx, my);
 }
 
 /* ============================ PATIENT ============================ */
@@ -182,6 +185,7 @@ export async function renderPatient(root, ctx) {
       </div>
     </div>`;
   await renderCareAndMap(root, ctx, last, st, tx, my);
+  await renderMyPass(root, my);
 }
 
 /* ============================ POINT 2: CARE TEAM + HOSPITAL MAP (patient) ============================ */
@@ -337,4 +341,113 @@ async function renderContact(root, ctx, my) {
       status.className = "small ok";
     } catch (e) { status.textContent = e.message; status.className = "small err"; }
   };
+}
+
+/* ============================ POINT 3: PATIENT QR PASS ============================ */
+const passLink = (token) => `${location.origin}/p/${token}`;
+
+function openModal(html) {
+  closeModal();
+  const d = document.createElement("div");
+  d.className = "modal-wrap"; d.id = "modal";
+  d.innerHTML = `<div class="modal" role="dialog" aria-modal="true"><button class="modal-x" aria-label="Close">×</button>${html}</div>`;
+  d.addEventListener("click", (e) => { if (e.target === d || e.target.classList.contains("modal-x")) closeModal(); });
+  document.body.appendChild(d);
+  return d;
+}
+function closeModal() { document.getElementById("modal")?.remove(); }
+
+function qrBlock(qr, link) {
+  return `<div class="qr-box"><img src="${qr}" alt="QR code for this patient" class="qr-img" />
+    <div class="qr-link"><code>${escText(link)}</code></div>
+    <div class="row-btns"><button class="btn" id="qr-copy">Copy link</button><button class="btn" id="qr-print">Print</button></div></div>`;
+}
+function wireQrBlock(link) {
+  document.getElementById("qr-copy").onclick = async (e) => {
+    try { await navigator.clipboard.writeText(link); e.target.textContent = "Copied ✓"; } catch { e.target.textContent = "Copy failed"; }
+  };
+  document.getElementById("qr-print").onclick = () => window.print();
+}
+
+async function passModal(code, email) {
+  const d = openModal(`<span class="eyebrow">Patient QR</span><h3 class="card-h">Patient ${escText(code)}</h3>
+    <p class="small muted">Making a new code replaces the old one. The patient shows it at visits. Scanning it opens the clinician sign-in, and only a signed-in doctor sees the record. Every view is logged.</p>
+    <div id="qr-area"><div class="muted small">Making the code…</div></div>`);
+  try {
+    const token = await S.createPass(code, email);
+    const link = passLink(token);
+    const qr = await S.makeQr(link);
+    d.querySelector("#qr-area").innerHTML = qrBlock(qr, link);
+    wireQrBlock(link);
+    refreshPassList();
+  } catch (e) {
+    d.querySelector("#qr-area").innerHTML = `<p class="err">${escText(e.message)}</p>`;
+  }
+}
+
+async function renderPasses(root, ctx, my) {
+  const { esc } = ctx;
+  let list = [];
+  try { list = await S.listPasses(); } catch (e) { console.warn("passes", e); }
+  if (my !== SEQ) return;
+  root.insertAdjacentHTML("beforeend", `
+    <div class="card" id="passes-card">
+      <div class="row-between"><div><h3 class="card-h">Patient QR codes you issued</h3>
+        <p class="small muted" style="margin:0">Each code opens one patient's record after clinician sign-in. Revoke a code if it is lost or a patient stops using it.</p></div></div>
+      ${list.length ? `<table class="tri"><thead><tr><th>Patient</th><th>Issued</th><th>Opened</th><th></th></tr></thead><tbody>
+        ${list.map((p) => `<tr><td><b>${esc(p.patient_code)}</b><div class="small muted">${esc(p.patient_email || "")}</div></td>
+          <td>${fmt(p.created_at)}</td><td>${p.views || 0}×</td>
+          <td><div class="row-btns"><button class="btn" data-showqr="${esc(p.token)}">Show QR</button>
+          <button class="btn btn-ghost" data-revoke="${esc(p.token)}">Revoke</button></div></td></tr>`).join("")}
+      </tbody></table>` : `<div class="empty-note" style="margin-top:10px">No QR codes yet. Use the QR button on a patient in the triage queue.</div>`}
+    </div>`);
+  wirePassList(root);
+}
+
+function wirePassList(scope) {
+  scope.querySelectorAll("[data-showqr]").forEach((b) => (b.onclick = async () => {
+    const link = passLink(b.dataset.showqr);
+    const d = openModal(`<span class="eyebrow">Patient QR</span><h3 class="card-h">Scan to open the record</h3>
+      <div id="qr-area"><div class="muted small">Making the code…</div></div>`);
+    try { d.querySelector("#qr-area").innerHTML = qrBlock(await S.makeQr(link), link); wireQrBlock(link); }
+    catch (e) { d.querySelector("#qr-area").innerHTML = `<p class="err">${escText(e.message)}</p>`; }
+  }));
+  scope.querySelectorAll("[data-revoke]").forEach((b) => (b.onclick = async () => {
+    if (!confirm("Revoke this QR code? The patient will need a new one from you.")) return;
+    try { await S.revokePass(b.dataset.revoke); toastPass("QR code revoked"); refreshPassList(); }
+    catch (e) { toastPass(e.message); }
+  }));
+}
+
+async function refreshPassList() {
+  const old = document.getElementById("passes-card");
+  if (!old) return;
+  const ctx = { esc: escText };
+  const tmp = document.createElement("div");
+  await renderPasses(tmp, ctx, SEQ);
+  const fresh = tmp.querySelector("#passes-card");
+  if (fresh) old.replaceWith(fresh);
+  // the new card is in the document now; re-wire its buttons
+  wirePassList(document.getElementById("passes-card") || document);
+}
+function toastPass(m) { const t = document.getElementById("toast"); if (!t) return; t.textContent = m; t.hidden = false; clearTimeout(toastPass._t); toastPass._t = setTimeout(() => (t.hidden = true), 2800); }
+
+async function renderMyPass(root, my) {
+  let token = null;
+  try { token = await S.myPass(); } catch (e) { console.warn("my pass", e); }
+  if (my !== SEQ) return;
+  let qr = null;
+  if (token) { try { qr = await S.makeQr(passLink(token)); } catch (e) { console.warn("qr", e); } }
+  root.insertAdjacentHTML("beforeend", `
+    <div class="card mypass-card">
+      <div class="mypass-qr">${qr ? `<img src="${qr}" alt="Your QR code" />` : `<div class="qr-empty">🔒</div>`}</div>
+      <div>
+        <span class="eyebrow">Your doctor's QR</span>
+        <h3 class="card-h">${token ? "Show this at your visit" : "Your QR code is not ready yet"}</h3>
+        <p class="small">${token
+          ? "Your doctor scans this code to open your record in their clinic. The clinician must sign in first, and each look is logged."
+          : "Your doctor creates a QR code for you at your next visit. It will appear here."}</p>
+        ${token ? `<p class="small muted">If you think someone else has this code, ask your doctor to replace it.</p>` : ""}
+      </div>
+    </div>`);
 }

@@ -57,6 +57,39 @@ export async function updateMyProfile(fields) {
   Object.assign(store.profile, fields);
 }
 
+/* ---------- patient QR passes (point 3) ---------- */
+export async function createPass(patientCode, email) {
+  const { data, error } = await store.sb.rpc("create_patient_pass", { p_patient_code: patientCode, p_email: email || null });
+  if (error) throw error;
+  return data;
+}
+export async function listPasses() {
+  const { data, error } = await store.sb.rpc("my_patient_passes");
+  if (error) throw error;
+  return data || [];
+}
+export async function revokePass(token) {
+  const { data, error } = await store.sb.rpc("revoke_patient_pass", { p_token: token });
+  if (error) throw error;
+  return !!data;
+}
+export async function myPass() {
+  const { data, error } = await store.sb.rpc("my_pass");
+  if (error) throw error;
+  return data || null;
+}
+export async function getPatientPass(token) {
+  const { data, error } = await store.sb.rpc("get_patient_pass", { p_token: token });
+  if (error) throw error;
+  return data;
+}
+// QR image for a link. Built on the server, so no third-party QR service sees the link.
+export async function makeQr(text) {
+  const r = await fetch("/api/qr", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+  if (!r.ok) throw new Error("Could not make the QR code");
+  return (await r.json()).qr;
+}
+
 // true when the clinician access code is valid and unused up. Does not use the code up (the sign-up does).
 export async function checkAccessCode(code) {
   const { data, error } = await store.sb.rpc("check_access_code", { p_code: code });

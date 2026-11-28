@@ -61,7 +61,10 @@ async function checkRole() {
   }
 }
 
+// after sign-in: back to the page that asked for it (a scanned QR), otherwise the home screen
+const NEXT = new URLSearchParams(location.search).get("next");
 function goApp() {
+  if (NEXT && NEXT.startsWith("/p/")) return location.replace(NEXT);
   location.replace("/#home");
 }
 

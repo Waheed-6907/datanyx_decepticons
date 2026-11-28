@@ -101,6 +101,7 @@ async function init() {
   initAssess();
   await S.initStore();
   setupAuth();
+  { const op = sessionStorage.getItem("openPatient"); if (op) { TWIN_PICK = op; sessionStorage.removeItem("openPatient"); } }
   if (!S.store.configured) {
     const b = document.createElement("div"); b.className = "local-mode";
     b.textContent = "Local demo mode: Supabase is not connected, so there is no sign-in and data stays on this computer.";
