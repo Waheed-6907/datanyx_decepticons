@@ -59,9 +59,9 @@ def keyword_extract(text):
             elif re.search(r"lung|pulmonary|thorax|chest", low):
                 case["organ"], ev["organ"] = "lung", sent
         if case.get("segment") is None:
-            ms = re.search(r"segment\s*(viii|vii|vi|iv|v|iii|ii|i|[1-8])\b", low)
+            ms = re.search(r"segment\s*(viii|vii|vi|ivb|iva|iv|v|iii|ii|i|[1-8])\b", low)
             if ms:
-                roman = {"1": "I", "2": "II", "3": "III", "4": "IV", "5": "V", "6": "VI", "7": "VII", "8": "VIII"}
+                roman = {"1": "I", "2": "II", "3": "III", "4": "IV", "5": "V", "6": "VI", "7": "VII", "8": "VIII", "IVA": "IVa", "IVB": "IVb"}
                 v = ms.group(1).upper(); case["segment"] = roman.get(v, v); ev["segment"] = sent
                 if case["organ"] == UNKNOWN:
                     case["organ"] = "liver"
