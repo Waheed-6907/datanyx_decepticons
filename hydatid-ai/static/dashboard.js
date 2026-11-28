@@ -71,8 +71,7 @@ export async function renderDoctor(root, ctx) {
               <td><span class="stg-pill" style="background:${HEX[r.final_stage] || "#64748B"}">${esc(r.final_stage)}</span>${r.complicated ? ` <span class="small" style="color:#B91C1C">⚠ complication</span>` : ""}</td>
               <td>${r.size_cm ? esc(r.size_cm) + " cm" : "–"}</td>
               <td>${fmt(r.exam_date)}</td>
-              <td><div class="row-btns"><button class="btn" data-open="${esc(r.patient_code)}">Open</button>
-                <button class="btn btn-ghost" data-qr="${esc(r.patient_code)}" data-email="${esc(r.patient_email || "")}">QR</button></div></td></tr>`).join("")}
+              <td><button class="btn" data-open="${esc(r.patient_code)}">Open</button></td></tr>`).join("")}
           </tbody></table>` : `<div class="empty-note">No patients yet. Run an assessment and confirm it to start the queue.</div>`}
         </div>
 
@@ -88,9 +87,6 @@ export async function renderDoctor(root, ctx) {
     </div>`;
   root.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => go(b.dataset.go)));
   root.querySelectorAll("[data-open]").forEach((b) => (b.onclick = () => openTwin(b.dataset.open)));
-  root.querySelectorAll("[data-qr]").forEach((b) => (b.onclick = () => passModal(b.dataset.qr, b.dataset.email)));
-  await renderContact(root, ctx, my);
-  await renderPasses(root, ctx, my);
 }
 
 /* ============================ PATIENT ============================ */
@@ -439,15 +435,27 @@ async function renderMyPass(root, my) {
   let qr = null;
   if (token) { try { qr = await S.makeQr(passLink(token)); } catch (e) { console.warn("qr", e); } }
   root.insertAdjacentHTML("beforeend", `
-    <div class="card mypass-card">
+    <div class="card mypass-card" id="mypass">
       <div class="mypass-qr">${qr ? `<img src="${qr}" alt="Your QR code" />` : `<div class="qr-empty">🔒</div>`}</div>
       <div>
-        <span class="eyebrow">Your doctor's QR</span>
-        <h3 class="card-h">${token ? "Show this at your visit" : "Your QR code is not ready yet"}</h3>
+        <span class="eyebrow">Your QR code</span>
+        <h3 class="card-h">${token ? "Show this to your doctor" : "Create your QR code"}</h3>
         <p class="small">${token
-          ? "Your doctor scans this code to open your record in their clinic. The clinician must sign in first, and each look is logged."
-          : "Your doctor creates a QR code for you at your next visit. It will appear here."}</p>
-        ${token ? `<p class="small muted">If you think someone else has this code, ask your doctor to replace it.</p>` : ""}
+          ? "Your doctor scans this code to open your summary: your stage, history, treatment options, and the hospitals and doctors near you. The clinician must sign in first, and each look is logged."
+          : "Create a code to show your doctor at a visit. It opens your summary when your doctor signs in."}</p>
+        <div class="row-btns" style="margin-top:8px">
+          <button class="btn btn-primary" id="mypass-make">${token ? "Replace my code" : "Create my QR code"}</button>
+          ${token ? `<button class="btn" id="mypass-copy">Copy link</button>` : ""}
+        </div>
+        <p class="small muted" id="mypass-msg"></p>
       </div>
     </div>`);
+  const make = document.getElementById("mypass-make");
+  if (make) make.onclick = async () => {
+    make.disabled = true; document.getElementById("mypass-msg").textContent = "Making your code…";
+    try { await S.createMyPass(); const home = document.getElementById("mypass"); home.remove(); await renderMyPass(root, SEQ); }
+    catch (e) { document.getElementById("mypass-msg").textContent = e.message; make.disabled = false; }
+  };
+  const copy = document.getElementById("mypass-copy");
+  if (copy) copy.onclick = async () => { try { await navigator.clipboard.writeText(passLink(token)); copy.textContent = "Copied ✓"; } catch { copy.textContent = "Copy failed"; } };
 }

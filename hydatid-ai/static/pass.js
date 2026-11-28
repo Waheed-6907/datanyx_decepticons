@@ -77,6 +77,20 @@ async function render(rec, meta) {
           <p class="small muted">${esc(tx.reason || "")}</p>` : `<p class="muted small">None recorded.</p>`}
       </div>
 
+      <div class="card">
+        <h3 class="card-h">Care team</h3>
+        ${[...new Set(exams.map((e) => e.doctor_name).filter(Boolean))].length
+          ? [...new Set(exams.map((e) => e.doctor_name).filter(Boolean))].map((d) => `<div class="small">• ${esc(d)}</div>`).join("")
+          : `<p class="muted small">No clinician recorded yet.</p>`}
+      </div>
+
+      <div class="card" id="pass-hosp">
+        <div class="row-btns" style="justify-content:space-between"><h3 class="card-h" style="margin:0">Hospitals near the patient</h3>
+          <button class="btn" id="pass-loc">Use my location</button></div>
+        <p class="small muted" id="pass-hosp-note">Finding hospitals…</p>
+        <div id="pass-hosp-list" class="hlist" style="max-height:none"></div>
+      </div>
+
       <div class="card pass-foot-card">
         <div class="small muted">Decision support only. Outputs are experimental and must be confirmed by a qualified clinician. <b>This view is logged.</b></div>
         <div class="pass-actions">
@@ -84,6 +98,8 @@ async function render(rec, meta) {
         </div>
       </div>
     </div>`;
+  loadNearby(st, tx, exams);
+  document.getElementById("pass-loc").onclick = () => loadNearby(st, tx, exams, true);
   document.getElementById("pass-open").onclick = () => {
     sessionStorage.setItem("openPatient", rec.patient_code);
     location.href = "/#twin";
@@ -104,3 +120,31 @@ async function boot() {
   }
 }
 boot();
+
+// hospitals that can deliver what this stage needs, nearest first (same ranking as the patient dashboard)
+function here(force) {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation || !force) return resolve(null);
+    navigator.geolocation.getCurrentPosition((p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }), () => resolve(null), { timeout: 6000 });
+  });
+}
+async function loadNearby(st, tx, exams, force) {
+  const note = document.getElementById("pass-hosp-note"), list = document.getElementById("pass-hosp-list");
+  if (!note || !list) return;
+  const pos = await here(force);
+  const body = { stage: st || "CL", options: (tx && tx.options) || [], organ: (exams[0] && exams[0].organ) || "liver",
+    complicated: "no", ...(pos || {}) };
+  try {
+    const r = await fetch("/api/hospitals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error("could not load hospitals");
+    const d = await r.json();
+    note.textContent = pos ? "Distances from your location." : "Distances are from the campus. Use your location for exact distances.";
+    list.innerHTML = d.hospitals.slice(0, 6).map((h) => `
+      <div class="hrow ${h.match ? "ok" : ""}">
+        <div class="hrow-top"><b>${esc(h.name)}</b><span class="dist">${h.distance_km} km</span></div>
+        <div class="small muted">${esc(h.area || "")} · ${esc(h.type || "")}</div>
+        <div class="small">${h.match ? '<span class="pill-ok">Can deliver this care</span>' : '<span class="pill-part">Partly available</span>'}</div>
+        <div class="hrow-actions"><a class="btn btn-primary" href="${esc(h.maps)}" target="_blank" rel="noopener">Directions</a></div>
+      </div>`).join("");
+  } catch (e) { note.textContent = "Hospitals could not be loaded: " + e.message; }
+}

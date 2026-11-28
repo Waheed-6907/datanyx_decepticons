@@ -63,6 +63,11 @@ export async function createPass(patientCode, email) {
   if (error) throw error;
   return data;
 }
+export async function createMyPass() {
+  const { data, error } = await store.sb.rpc("create_my_pass");
+  if (error) throw error;
+  return data;
+}
 export async function listPasses() {
   const { data, error } = await store.sb.rpc("my_patient_passes");
   if (error) throw error;
