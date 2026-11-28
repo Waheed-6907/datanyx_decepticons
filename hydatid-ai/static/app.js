@@ -1,6 +1,7 @@
 import { createCystViewer } from "/static/cyst3d.js";
 import { createGraph } from "/static/graph3d.js";
-import { createBodyViewer, createLiverViewer } from "/static/xray.js";
+import { createBodyViewer } from "/static/xray.js";
+import { createAnatomyViewer, LOBE_NAME, SEG_NAME } from "/static/anatomy.js";
 import * as S from "/static/store.js";
 import { renderDoctor, renderPatient } from "/static/dashboard.js";
 
@@ -186,7 +187,8 @@ function initAssess() {
   viewers.empty = createBodyViewer($("#empty-3d"), { distance: 5.6, stage: "CE2", size: 7, organ: "liver" });
   viewers.assess = createCystViewer($("#assess-3d"), { distance: 4.0, xray: true });
   viewers.body = createBodyViewer($("#assess-body"), { distance: 5.4 });
-  viewers.liver = createLiverViewer($("#liver-3d"), {});
+  viewers.liver = createAnatomyViewer($("#liver-3d"), { onPick: pickLocation });
+  wireLocation();
   $("#use-loc").onclick = useLocation;
   $("#make-qr").onclick = makeQR;
   $("#retrain").onclick = retrain;
@@ -895,11 +897,44 @@ function renderLadder(r, c, evidence) {
   }).join("");
 }
 
+/* ============================ LOCATION: where the cyst is (point 1) ============================ */
+const SEG_IDS = ["I", "II", "III", "IVa", "IVb", "V", "VI", "VII", "VIII"];
+const LOBE_IDS = ["RUL", "RML", "RLL", "LUL", "LLL"];
+// shows the location the report gave (or the one the doctor chose) on the form and in the 3D organ
+function drawLocation(r, c) {
+  const organ = c.organ === "lung" ? "lung" : "liver";
+  const seg = SEG_IDS.includes(c.segment) ? c.segment : "";
+  const lobe = LOBE_IDS.includes(c.lobe) ? c.lobe : "";
+  $("#loc-seg").value = seg; $("#loc-lobe").value = lobe; $("#loc-depth").value = c.depth || "central";
+  const note = organ === "liver"
+    ? (seg ? `Liver · ${SEG_NAME[seg]}` : c.segment ? `Liver · "${c.segment}" is not a Couinaud segment, so the position is approximate` : "Liver · segment not stated, so the cyst is shown at an approximate position")
+    : (lobe ? `Lung · ${LOBE_NAME[lobe]}` : "Lung · lobe not stated, so the cyst is shown at an approximate position");
+  $("#loc-note").textContent = note;
+  viewers.liver.set({ organ, stage: r.stage, size: c.size_cm, segment: seg || null, lobe: lobe || null, depth: c.depth || "central" });
+}
+function applyLocation() {
+  if (!LAST) return;
+  LAST.case.segment = $("#loc-seg").value || null;
+  LAST.case.lobe = $("#loc-lobe").value || null;
+  LAST.case.depth = $("#loc-depth").value;
+  drawLocation(LAST.result, LAST.case);
+}
+// a click on the 3D organ marks the location (liver segment or lung lobe)
+function pickLocation(p) {
+  if (!LAST) return toast("Analyse a report first, then mark where the cyst is");
+  if (p.organ === "lung") { $("#loc-lobe").value = p.lobe; $("#loc-seg").value = ""; LAST.case.organ = "lung"; }
+  else { $("#loc-seg").value = p.segment; $("#loc-lobe").value = ""; LAST.case.organ = "liver"; }
+  toast(`Marked: ${p.lobe ? LOBE_NAME[p.lobe] : SEG_NAME[p.segment]}`);
+  applyLocation();
+}
+function wireLocation() { ["loc-seg", "loc-lobe", "loc-depth"].forEach((id) => ($("#" + id).onchange = applyLocation)); }
+
 /* ============================ USP 5: stage -> treatment -> location ============================ */
 function renderFlow(r, c) {
   const organ = c.organ === "unknown" ? "liver" : c.organ;
-  viewers.liver.set({ stage: r.stage, size: c.size_cm, segment: organ === "liver" ? c.segment : null });
-  $("#liver-seg").textContent = organ !== "liver" ? (organ === "lung" ? "LUNG CYST · SEE BODY VIEW" : "OTHER ORGAN") : (c.segment ? "SEG " + String(c.segment).toUpperCase() : "SEGMENT NOT REPORTED");
+  drawLocation(r, c);
+  $("#liver-seg").textContent = organ === "lung" ? (c.lobe ? "LUNG · " + c.lobe : "LUNG · LOBE NOT STATED")
+    : organ !== "liver" ? "OTHER ORGAN" : (c.segment ? "SEG " + String(c.segment).toUpperCase() : "SEGMENT NOT REPORTED");
   const [col] = PHASE_STYLE[r.stage];
   const where = organ === "liver" ? (c.segment ? `Liver · ${/lobe/.test(c.segment) ? c.segment : "segment " + c.segment}` : "Liver · segment not reported") : organ === "lung" ? "Right lung (see X-ray body view)" : "Other organ";
   const tx = r.treatment.options.map((o) => `<span>${esc(o.split(" (")[0])}</span>`).join("");

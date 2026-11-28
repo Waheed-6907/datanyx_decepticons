@@ -46,4 +46,5 @@ def empty_case():
     case[SIZE] = None
     case[ORGAN] = UNKNOWN
     case["segment"] = None   # Couinaud liver segment I-VIII (optional)
+    case["lobe"] = None      # lung lobe: RUL, RML, RLL, LUL, LLL (optional)
     return case

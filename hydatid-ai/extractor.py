@@ -54,7 +54,7 @@ def keyword_extract(text):
             case["size_cm"] = val / 10 if m.group(2) == "mm" else val
             ev["size_cm"] = sent
         if case["organ"] == UNKNOWN:
-            if re.search(r"liver|hepatic|lobe", low):
+            if re.search(r"liver|hepatic", low) or (re.search(r"lobe", low) and not re.search(r"lung|pulmonary|thorax|chest", low)):
                 case["organ"], ev["organ"] = "liver", sent
             elif re.search(r"lung|pulmonary|thorax|chest", low):
                 case["organ"], ev["organ"] = "lung", sent
@@ -69,6 +69,19 @@ def keyword_extract(text):
                 case["segment"], ev["segment"] = "right lobe", sent
             elif re.search(r"left (?:hepatic )?lobe", low):
                 case["segment"], ev["segment"] = "left lobe", sent
+        # lung lobe (RUL/RML/RLL/LUL/LLL), from words like "right lower lobe" or "RLL"
+        if case.get("lobe") is None:
+            lm = re.search(r"\b(right|left)\s+(upper|middle|lower)\s+lobe\b", low) or re.search(r"\b(rul|rml|rll|lul|lll)\b", low)
+            if lm:
+                if lm.lastindex == 2:
+                    code = {("right", "upper"): "RUL", ("right", "middle"): "RML", ("right", "lower"): "RLL",
+                            ("left", "upper"): "LUL", ("left", "lower"): "LLL"}.get((lm.group(1), lm.group(2)))
+                else:
+                    code = lm.group(1).upper()
+                if code:
+                    case["lobe"], ev["lobe"] = code, sent
+                    if case["organ"] == UNKNOWN:
+                        case["organ"] = "lung"
         # implied negatives from 'simple / unilocular / anechoic'
         if re.search(r"unilocular|simple cyst|uniloculated", low):
             for c in ("septations", "daughter_cysts"):

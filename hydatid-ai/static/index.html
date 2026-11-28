@@ -118,6 +118,15 @@
               <label class="field"><span>Sex</span><select id="p-sex"><option value="">–</option><option>F</option><option>M</option><option>Other</option></select></label>
             </div>
             <label class="field" style="margin-top:10px"><span>Patient email <span class="muted">(optional, lets the patient see this report in their account)</span></span><input id="p-email" type="email" placeholder="patient@example.com" /></label>
+            <div class="loc-picker">
+              <div class="lbl">Where is the cyst? <span class="muted small">taken from the report, or click the organ in the 3D view</span></div>
+              <div class="loc-grid">
+                <label class="field"><span>Liver segment (Couinaud)</span><select id="loc-seg"><option value="">Not stated</option><option value="I">I · caudate</option><option value="II">II</option><option value="III">III</option><option value="IVa">IVa</option><option value="IVb">IVb</option><option value="V">V</option><option value="VI">VI</option><option value="VII">VII</option><option value="VIII">VIII</option></select></label>
+                <label class="field"><span>Lung lobe</span><select id="loc-lobe"><option value="">Not stated</option><option value="RUL">Right upper</option><option value="RML">Right middle</option><option value="RLL">Right lower</option><option value="LUL">Left upper</option><option value="LLL">Left lower</option></select></label>
+                <label class="field"><span>Depth</span><select id="loc-depth"><option value="central">Central</option><option value="superficial">Near the surface</option><option value="deep">Deep in the organ</option></select></label>
+              </div>
+              <div class="small muted" id="loc-note"></div>
+            </div>
           </div>
 
           <div class="card">
@@ -236,7 +245,7 @@
             <div class="card">
               <h2 class="card-title"><span class="ico">🧭</span>Stage → treatment → location</h2>
               <div class="stl">
-                <div><div class="c3d xray stl-3d" id="liver-3d"><div class="xr-corner">LIVER SEGMENTS<span id="liver-seg">–</span></div><span class="c3d-hint">Couinaud segments (schematic) · drag</span></div></div>
+                <div><div class="c3d anat-3d" id="liver-3d"><div class="xr-corner">ANATOMY · LIVER &amp; LUNGS<span id="liver-seg">–</span></div></div></div>
                 <div class="flowline" id="flowline"></div>
               </div>
             </div>

@@ -588,3 +588,18 @@ mark{background:#FFF1B8;padding:1px 3px;border-radius:4px;box-shadow:inset 0 -2p
 .pass-foot-card{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .pass-page .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow)}
 .pass-page .hist-row{grid-template-columns:110px 70px 1fr}
+
+/* ---------- 3D anatomy + location picker (point 1) ---------- */
+.loc-picker{margin-top:12px;padding:12px;border:1px dashed var(--line);border-radius:14px;background:#FAFBFC}
+.loc-picker .lbl{font-weight:700;font-size:13px;margin-bottom:8px}
+.loc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.loc-grid .field{display:grid;gap:5px;font-size:12px;font-weight:600}
+.loc-grid select{padding:8px 10px;border:1px solid var(--line);border-radius:10px;font:inherit;font-weight:400;background:#fff}
+.anat-labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.anat-pill{position:absolute;left:0;top:0;transform-origin:0 0;padding:2px 7px;border-radius:99px;background:rgba(15,23,42,.72);color:#e2e8f0;font:600 11px/1.4 Inter,system-ui,sans-serif;white-space:nowrap;margin:-9px 0 0 -10px;border:1px solid rgba(255,255,255,.18);transition:opacity .2s}
+.anat-pill.on{background:#fde68a;color:#78350f;border-color:#fde68a;font-weight:800;box-shadow:0 0 0 4px rgba(251,191,36,.25)}
+.anat-tag{position:absolute;left:0;top:0;padding:6px 11px;border-radius:12px;background:rgba(15,23,42,.85);color:#fff;font:600 12.5px/1.4 Inter,system-ui,sans-serif;white-space:nowrap;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.anat-approx{color:#fcd34d;font-weight:500}
+.anat-hint{position:absolute;left:12px;bottom:10px;font-size:11.5px;color:#94a3b8;background:rgba(15,23,42,.5);padding:4px 9px;border-radius:99px;pointer-events:none}
+
+.anat-3d{height:460px;min-height:460px}
