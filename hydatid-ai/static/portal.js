@@ -80,7 +80,11 @@ async function onSubmit(e) {
     const name = $("a-name").value.trim();
     const code = $("a-code").value.trim();
     if (!name) throw new Error("Please enter your full name.");
-    if (PORTAL === "doctor" && !code) throw new Error("Doctors need the access code from the hospital admin.");
+    if (PORTAL === "doctor") {
+      if (!code) throw new Error("Enter the clinician access code from your hospital admin.");
+      // checked BEFORE the account exists, so a wrong code leaves nothing behind
+      if (!(await S.checkAccessCode(code))) throw new Error("That is not a valid clinician access code. Ask your hospital admin, or use a sample code (see the hint under the box).");
+    }
     const out = await S.signUp({ email, password, full_name: name, role: PORTAL, doctor_code: code });
     if (out.confirm) {
       say("Account created. Check your email to confirm, then sign in.", "ok");
@@ -89,13 +93,33 @@ async function onSubmit(e) {
     }
     if (PORTAL === "doctor" && S.store.profile?.role !== "doctor") {
       await S.signOut();
-      throw new Error("Access code not accepted. Ask your hospital admin for the clinician code.");
+      throw new Error("The access code was used up while you signed up. Ask your hospital admin for a new one.");
     }
     goApp();
   } catch (err) {
     say(err.message || String(err), "err");
     go.disabled = false;
   }
+}
+
+// live hint under the access code box, so a wrong code is obvious before the form is sent
+let hintTimer = null;
+function wireCodeHint() {
+  const input = $("a-code"), hint = $("code-hint");
+  input.addEventListener("input", () => {
+    clearTimeout(hintTimer);
+    const v = input.value.trim();
+    if (!v) { hint.textContent = "Sample codes for testing: DOC-SAMPLE-01 to DOC-SAMPLE-05, or DECEPTICONS-DOC"; hint.className = "small muted"; return; }
+    hintTimer = setTimeout(async () => {
+      try {
+        const ok = await S.checkAccessCode(v);
+        hint.textContent = ok ? "✓ Valid clinician code" : "✗ Not a clinician code (an assessment ID like CS-… is not an access code)";
+        hint.className = "small " + (ok ? "ok" : "err");
+      } catch (e) { hint.textContent = ""; }
+    }, 400);
+  });
+  hint.textContent = "Sample codes for testing: DOC-SAMPLE-01 to DOC-SAMPLE-05, or DECEPTICONS-DOC";
+  hint.className = "small muted";
 }
 
 async function boot() {
@@ -112,6 +136,7 @@ async function boot() {
     try { await checkRole(); return goApp(); } catch (err) { say(err.message, "err"); return; }
   }
   $("auth-form").addEventListener("submit", onSubmit);
+  if (PORTAL === "doctor") wireCodeHint();
 }
 
 boot();

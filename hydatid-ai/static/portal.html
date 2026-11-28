@@ -26,7 +26,7 @@
         <form id="auth-form" autocomplete="on">
           <div id="up-only" hidden>
             <label class="field"><span>Full name</span><input id="a-name" autocomplete="name" placeholder="Dr. Zaheer Ahmed" /></label>
-            <label class="field" id="code-row"><span>Doctor access code</span><input id="a-code" placeholder="Given by your hospital admin" /></label>
+            <label class="field" id="code-row"><span>Clinician access code</span><input id="a-code" autocomplete="off" placeholder="Given by your hospital admin, e.g. DOC-SAMPLE-01" /><small id="code-hint" class="small"></small></label>
           </div>
           <label class="field"><span>Email</span><input id="a-email" type="email" autocomplete="email" required placeholder="you@hospital.org" /></label>
           <label class="field"><span>Password</span><input id="a-pass" type="password" autocomplete="current-password" required minlength="6" placeholder="At least 6 characters" /></label>

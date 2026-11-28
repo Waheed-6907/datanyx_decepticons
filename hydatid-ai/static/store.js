@@ -40,6 +40,13 @@ export async function signUp({ email, password, full_name, role, doctor_code }) 
   return { confirm: false };
 }
 
+// true when the clinician access code is valid and unused up. Does not use the code up (the sign-up does).
+export async function checkAccessCode(code) {
+  const { data, error } = await store.sb.rpc("check_access_code", { p_code: code });
+  if (error) throw error;
+  return !!data;
+}
+
 export async function signOut() { if (store.sb) await store.sb.auth.signOut(); store.user = null; store.profile = null; }
 
 export const isDoctor = () => !store.configured || store.profile?.role === "doctor";
