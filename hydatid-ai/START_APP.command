@@ -15,4 +15,4 @@ if [ ! -f data/cases.csv ]; then python make_synthetic.py 5000; fi
 if [ ! -f stage_model.joblib ] && python -c "import xgboost" >/dev/null 2>&1; then python model.py data/cases.csv; fi
 ( sleep 4; open "http://127.0.0.1:8000" ) &
 echo "Starting server at http://127.0.0.1:8000  (close this window to stop)"
-uvicorn server:app --host 127.0.0.1 --port 8000
+uvicorn server:app --host 0.0.0.0 --port 8000

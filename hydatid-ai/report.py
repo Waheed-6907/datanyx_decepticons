@@ -64,15 +64,26 @@ def build_pdf(patient, case, result, evidence, report_text=None, decision=None, 
     _line(pdf, f"Patient: {patient.get('id') or '-'}    Age: {patient.get('age') or '-'}    "
                f"Sex: {patient.get('sex') or '-'}    Generated: {now}")
 
+    sd = result.get("self_doubt")
+    if sd:
+        _section(pdf, "Self-doubt engine")
+        _line(pdf, sd["title"], bold=True)
+        for x in sd["reasons"]:
+            _line(pdf, f"- {x}")
+        _line(pdf, f"Suggested action: {sd['action']}")
+
     _section(pdf, "AI assessment")
     _line(pdf, f"Stage: {result['stage']}  ({result['phase']})", bold=True)
+    if result.get("referral"):
+        _line(pdf, f"Referral priority: {result['referral']['label']} - {result['referral']['why']}")
     _line(pdf, f"Confidence: {result['confidence']}")
     if result["ml_probs"]:
         top = sorted(result["ml_probs"].items(), key=lambda kv: -kv[1])[:3]
         _line(pdf, "Model probabilities: " + ", ".join(f"{s} {p:.0%}" for s, p in top))
     checks = {"judges_agree": "Rule judge and ML judge agree",
               "ml_confident": "ML probability >= 70%",
-              "key_clues_present": "All key findings for this stage reported"}
+              "key_clues_present": "All key findings for this stage reported",
+              "image_agrees": "Image AI agrees with the reported findings"}
     for k, ok in result["checks"].items():
         _line(pdf, f"[{'x' if ok else ' '}] {checks[k]}")
 
@@ -112,6 +123,13 @@ def build_pdf(patient, case, result, evidence, report_text=None, decision=None, 
             pdf.image(io.BytesIO(image_bytes), w=90)
         except Exception:
             _line(pdf, "(image could not be embedded)")
+
+    p = result.get("passport")
+    if p:
+        _section(pdf, "Assessment passport")
+        _line(pdf, f"ID {p['assessment_id']}  |  {p['timestamp']}  |  input hash {p['input_hash']}")
+        _line(pdf, f"{p['engine']}  |  {p['ruleset']}  |  model: {p['model']}")
+        _line(pdf, "Guidelines: " + ", ".join(p["guidelines"]))
 
     _section(pdf, "Clinician decision")
     if decision:

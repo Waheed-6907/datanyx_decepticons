@@ -1,0 +1,18 @@
+# Render Blueprint for CystStage AI (free tier).
+# Render reads this file from the repository root; the app itself lives in hydatid-ai/.
+services:
+  - type: web
+    name: cyststage-ai
+    runtime: python
+    plan: free
+    rootDir: hydatid-ai
+    buildCommand: pip install -r requirements.txt && python model.py data/cases.csv
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/config
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SUPABASE_URL
+        value: https://lsvpsngigrpiwkwnprjz.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false   # paste the publishable (anon) key in the Render dashboard; never the service_role key

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CystStage AI · Patient report</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <script type="importmap">{ "imports": { "three": "/static/vendor/three.module.min.js" } }</script>
+  <style>
+    body{background:#F3F6F8}
+    .rp{max-width:860px;margin:0 auto;padding:18px 18px 40px;display:flex;flex-direction:column;gap:14px}
+    .rp-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+    .langs{display:flex;gap:6px;flex-wrap:wrap}
+    .stage-hero{display:grid;grid-template-columns:1fr 150px;gap:16px;align-items:center;border-left:6px solid var(--c)}
+    .stage-hero .big{font-size:52px;font-weight:700;letter-spacing:-.03em;color:var(--c);line-height:1}
+    .flag{display:inline-flex;gap:8px;align-items:center;font-weight:700;border-radius:12px;padding:10px 14px;margin-top:10px}
+    .flag.bad{background:#FEE4E2;color:#B42318;animation:stampIn .7s cubic-bezier(.22,1,.36,1) both}
+    .flag.good{background:#DCFCE7;color:#15803D}
+    @keyframes stampIn{0%{transform:scale(1.6) rotate(-8deg);opacity:0}100%{transform:none;opacity:1}}
+    .rp-3d{height:300px}
+    .facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+    .facts div{background:#F8FAFB;border:1px solid var(--line);border-radius:10px;padding:10px}
+    .facts span{display:block;font-size:12px;color:var(--muted)} .facts b{font-size:15px}
+    [dir=rtl] .stage-hero{border-left:0;border-right:6px solid var(--c)}
+    @media print{.no-print{display:none!important}.c3d{display:none}body{background:#fff}.card{box-shadow:none}}
+  </style>
+</head>
+<body>
+  <div class="rp" id="rp">
+    <div class="rp-top no-print">
+      <div class="brand"><div class="logo"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="16" cy="16" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-dasharray="3 2.4"/><circle cx="16" cy="16" r="2" fill="currentColor"/></svg></div><div><div class="brand-name">CystStage <span>AI</span></div><div class="brand-sub">Secure patient report</div></div></div>
+      <div class="langs" id="langs"></div>
+    </div>
+    <div id="body" class="stagger"><div class="card">Loading…</div></div>
+  </div>
+  <script type="module">
+    import { LANGS, RTL, T, STAGE_TEXT, treatmentKeys, PHASE_KEY } from "/static/i18n.js";
+    import { createCystViewer } from "/static/cyst3d.js";
+    const HEX = { CL: "#64748B", CE1: "#DC4B3E", CE2: "#DC4B3E", CE3a: "#D97706", CE3b: "#D97706", CE4: "#2563EB", CE5: "#2563EB" };
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const token = location.pathname.split("/").pop();
+    let lang = new URLSearchParams(location.search).get("lang") || "en", D = null, viewer = null;
+    const r = await fetch("/api/share/" + token);
+    D = await r.json();
+    if (!r.ok) { document.getElementById("body").innerHTML = `<div class="card"><h3>⚠ ${esc(D.error)}</h3></div>`; }
+    else render();
+    document.getElementById("langs").innerHTML = Object.entries(LANGS).map(([k, v]) => `<button class="chip" data-l="${k}">${v}</button>`).join("");
+    document.querySelectorAll("#langs .chip").forEach((b) => (b.onclick = () => { lang = b.dataset.l; history.replaceState(null, "", "?lang=" + lang); render(); }));
+
+    function render() {
+      document.querySelectorAll("#langs .chip").forEach((b) => b.classList.toggle("on", b.dataset.l === lang));
+      document.documentElement.lang = lang; document.getElementById("rp").dir = RTL[lang] ? "rtl" : "ltr";
+      const t = T[lang], res = D.result, st = res.stage, c = HEX[st], info = D.stage_info;
+      const [look, means] = lang === "en" ? [info.plain, info.means] : STAGE_TEXT[lang][st];
+      const phase = t.phase[PHASE_KEY(res.phase)];
+      const seg = D.case.segment ? ` · ${t.segment} ${esc(D.case.segment)}` : "";
+      const review = res.needs_review;
+      const tx = treatmentKeys(res.treatment.options).map((k) => `<div class="tx"><span class="n">✓</span><span>${esc(t.tx[k])}</span></div>`).join("");
+      document.getElementById("body").innerHTML = `
+        <div class="card stage-hero" style="--c:${c}"><div>
+          <div class="muted small">${t.title}</div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0"><span class="big">${st}</span><span class="phase-pill" style="background:${c}22;color:${c}">${esc(phase)}</span></div>
+          <div class="flag ${review ? "bad" : "good"}">${review ? "⚠ " + t.review : "✓ " + t.ok}</div></div>
+          <div class="ring" style="--p:${res.confidence_score};--c:${c}"><div class="ring-inner"><div style="font-weight:700;font-size:22px;color:${c}">${res.confidence_score}%</div><div class="muted small" style="text-align:center;font-size:11px">${t.confidence}</div></div></div></div>
+        <div class="card"><h2 class="card-title">${t.what}</h2><p style="font-size:17px;margin:0 0 8px">${esc(look)}</p><p class="muted" style="margin:0">${esc(means)}</p></div>
+        <div class="card facts">
+          <div><span>${t.location}</span><b>${esc(t.organ[D.case.organ] || t.organ.unknown)}${seg}</b></div>
+          <div><span>${t.size}</span><b>${D.case.size_cm ? D.case.size_cm + " cm" : "–"}</b></div>
+          <div><span>${t.patient}</span><b>${esc(D.patient.id || "–")}</b></div>
+          <div><span>${t.date}</span><b>${esc(D.created.slice(0, 10))}</b></div></div>
+        <div class="card"><h2 class="card-title">${t.treatment}</h2><div class="treatments">${tx}</div></div>
+        <div class="card no-print"><h2 class="card-title">${t.model3d}</h2><div class="c3d xray rp-3d" id="rp-3d"></div></div>
+        ${D.heatmap ? `<div class="card"><h2 class="card-title">${t.heatmap}</h2><img src="${D.heatmap}" style="max-width:100%;border-radius:10px" alt=""/></div>` : ""}
+        <div class="card"><p class="small" style="margin:0 0 8px">${t.disclaimer}</p><p class="small muted" style="margin:0">${t.expires}: ${esc(D.expires.replace("T", " "))} · ID ${esc(res.passport.assessment_id)}</p>
+          <button class="btn btn-primary no-print" style="margin-top:12px" onclick="window.print()">${t.print}</button></div>`;
+      const b = document.getElementById("body"); b.classList.remove("stagger"); void b.offsetWidth; b.classList.add("stagger");
+      viewer = createCystViewer(document.getElementById("rp-3d"), { xray: true, notes: false, distance: 4.2 });
+      viewer.setStage(st, D.case.size_cm);
+    }
+  </script>
+</body>
+</html>

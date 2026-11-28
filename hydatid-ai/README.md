@@ -15,6 +15,20 @@ uvicorn server:app --reload        # open http://localhost:8000
 Optional LLM report reader: `export ANTHROPIC_API_KEY=...` (or `GEMINI_API_KEY=...`) before starting the server,
 then switch on "AI report reader" in the app. Without a key the offline keyword reader is used, so the demo never breaks.
 
+## Easiest way to run (Mac)
+Double-click **START_APP.command** — it installs everything, trains the model and opens http://127.0.0.1:8000.
+Double-click **PUSH_TO_GITHUB.command** to commit and push your changes.
+
+## Views
+| View | What it shows |
+|---|---|
+| Home | 3D hero cycling through all stages, how it works, feature tour |
+| Assess | Self-doubt engine, stage + phase, 3D model, referral priority, evidence, doctor-vs-AI second opinion, management, assessment passport, confirm/override, PDF, save to digital twin, voice dictation, scan quality coach |
+| 3D Stages | Interactive 3D model of every WHO-IWGE stage with labelled signs, plain-language explanation, size slider, auto-play |
+| Digital Twin | Patient timeline across exams, size/stage chart, cyst change report, 3D model per exam |
+| What-if | Change findings, size, organ, complications and watch the guideline pathway respond |
+| Knowledge Graph | 3D graph of sign → stage → phase → management (every rule the engine uses) |
+
 ## What the web app does
 - **Scan report** mode: paste a report (or click a sample) → stage, phase, confidence, evidence sentences highlighted.
 - **Findings checklist** mode: tick findings, leave "?" for not assessed → live re-staging and "please check" prompts.

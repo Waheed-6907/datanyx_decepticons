@@ -3,171 +3,410 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CystStage AI · Hydatid cyst staging</title>
+  <title>CystStage AI · DATANYX’26 MED-02 · Team Decepticons</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230F766E'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='white' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='white'/%3E%3C/svg%3E" />
+  <script src="/static/vendor/supabase.js"></script>
+  <script type="importmap">{ "imports": { "three": "/static/vendor/three.module.min.js" } }</script>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="logo" aria-hidden="true">
-        <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="16" cy="16" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-dasharray="3 2.4"/><circle cx="16" cy="16" r="2" fill="currentColor"/></svg>
-      </div>
-      <div>
-        <div class="brand-name">CystStage <span>AI</span></div>
-        <div class="brand-sub">Evidence-based hydatid cyst staging · WHO-IWGE</div>
+  <section id="auth" class="auth" hidden>
+    <div class="auth-visual">
+      <div class="c3d xray" id="auth-3d"><div class="xr-corner">CYSTSTAGE AI<span>SECURE SIGN-IN</span></div></div>
+      <div class="auth-tag"><h1>The AI that knows <em>what it doesn't know.</em></h1><p>Evidence-based hydatid cyst staging for doctors, and clear reports for patients.</p></div>
+    </div>
+    <div class="auth-panel">
+      <div class="card auth-card slide-up">
+        <div class="brand" style="margin-bottom:18px"><div class="logo"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="16" cy="16" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-dasharray="3 2.4"/><circle cx="16" cy="16" r="2" fill="currentColor"/></svg></div><div><div class="brand-name">CystStage <span>AI</span></div><div class="brand-sub">Sign in to continue</div></div></div>
+        <div class="seg" id="auth-tabs"><button class="seg-btn active" data-t="in">Sign in</button><button class="seg-btn" data-t="up">Create account</button></div>
+        <form id="auth-form" autocomplete="on">
+          <div id="up-only" hidden>
+            <div class="small muted" style="font-weight:600;margin-bottom:6px">I am a</div>
+            <div class="role-pick" id="role-pick">
+              <button type="button" class="role on" data-r="doctor"><span>🩺</span><b>Doctor</b><small>Assess scans, confirm stages</small></button>
+              <button type="button" class="role" data-r="patient"><span>🧑</span><b>Patient</b><small>View my reports</small></button>
+            </div>
+            <label class="field"><span>Full name</span><input id="a-name" autocomplete="name" placeholder="Dr. Zaheer Ahmed" /></label>
+            <label class="field" id="code-row"><span>Doctor access code</span><input id="a-code" placeholder="Given by your hospital admin" /></label>
+          </div>
+          <label class="field"><span>Email</span><input id="a-email" type="email" autocomplete="email" required placeholder="you@hospital.org" /></label>
+          <label class="field"><span>Password</span><input id="a-pass" type="password" autocomplete="current-password" required minlength="6" placeholder="At least 6 characters" /></label>
+          <div id="auth-msg" class="small"></div>
+          <button class="btn btn-primary btn-lg" id="auth-go" style="width:100%;justify-content:center">Sign in</button>
+        </form>
+        <p class="small muted" style="margin:14px 0 0;text-align:center">Data is stored securely in Supabase with row-level security: doctors see the patients they manage, patients see only their own reports.</p>
       </div>
     </div>
+  </section>
+
+  <header class="topbar">
+    <div class="brand" data-go="home">
+      <div class="logo" aria-hidden="true"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="16" cy="16" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-dasharray="3 2.4"/><circle cx="16" cy="16" r="2" fill="currentColor"/></svg></div>
+      <div><div class="brand-name">CystStage <span>AI</span></div><div class="brand-sub">DATANYX’26 MED-02 · Team Decepticons</div></div>
+    </div>
+    <nav class="nav" id="nav">
+      <span class="pill" id="nav-pill"></span>
+      <button data-view="home" class="active">Home</button>
+      <button data-view="assess">Assess</button>
+      <button data-view="explore">3D Stages</button>
+      <button data-view="twin">Digital Twin</button>
+      <button data-view="whatif">What-if</button>
+      <button data-view="graph">Knowledge Graph</button>
+      <button data-view="reports" hidden>My Reports</button>
+    </nav>
     <div class="top-badges">
       <span class="badge" id="model-badge">Loading…</span>
+      <span class="badge" id="img-badge" hidden>Image AI</span>
       <span class="badge badge-warn">Experimental · clinician review required</span>
+      <div class="user-chip" id="user-chip" hidden><span class="avatar" id="u-avatar">Z</span><div><b id="u-name">–</b><small id="u-role">–</small></div><button class="btn btn-ghost" id="signout" style="padding:5px 10px">Sign out</button></div>
     </div>
   </header>
 
-  <main class="layout">
-    <!-- ============ LEFT: INPUT ============ -->
-    <section class="panel input-panel">
-      <div class="card">
-        <h2 class="card-title">Patient</h2>
-        <div class="grid3">
-          <label class="field"><span>Patient ID</span><input id="p-id" placeholder="e.g. MJ-0142" /></label>
-          <label class="field"><span>Age</span><input id="p-age" type="number" min="0" max="120" placeholder="42" /></label>
-          <label class="field"><span>Sex</span>
-            <select id="p-sex"><option value="">–</option><option>F</option><option>M</option><option>Other</option></select>
-          </label>
+  <main class="views">
+    <!-- ======================= HOME ======================= -->
+    <section class="view on" id="view-home">
+      <div class="hero-home">
+        <div class="slide-up">
+          <span class="eyebrow">DATANYX'26 · MED-02 · Team Decepticons</span>
+          <h1>The AI that knows <em>what it doesn't know.</em></h1>
+          <p class="lead">CystStage AI reads an ultrasound report, stages the hydatid cyst on the WHO-IWGE scale, shows the exact evidence behind every call, and <b>refuses to guess</b> when the evidence is not there. The doctor always decides.</p>
+          <div class="btns">
+            <button class="btn btn-primary btn-lg" data-go="assess">Start an assessment →</button>
+            <button class="btn btn-ghost btn-lg" data-go="explore">Explore the 7 stages in 3D</button>
+          </div>
+          <div class="stats">
+            <div class="stat"><b>7</b><span>WHO-IWGE stages</span></div>
+            <div class="stat"><b>2</b><span>independent judges</span></div>
+            <div class="stat"><b>0</b><span>blind guesses</span></div>
+            <div class="stat"><b>100%</b><span>evidence-linked</span></div>
+          </div>
+        </div>
+        <div class="c3d xray home-3d slide-up" id="home-3d" style="animation-delay:.15s">
+          <span class="c3d-stage" id="home-stage">CE1 · Active</span>
+          <div class="xr-corner">X-RAY VIEW<span id="home-site">LIVER</span></div>
+          <span class="c3d-hint">Drag to rotate · scroll to zoom</span>
+        </div>
+        <div class="monitor slide-up" id="home-scan" hidden style="animation-delay:.15s">
+          <div class="mon-view">
+            <img id="mon-a" alt="Real scan from the team dataset" /><img id="mon-b" alt="" />
+            <div class="mon-grid"></div><div class="mon-sweep"></div>
+            <div class="mon-reticle"><i></i><i></i><i></i><i></i></div>
+            <div class="mon-tl">CYSTSTAGE AI<br><span>Team dataset · real scan</span></div>
+            <div class="mon-tr"><b id="mon-stage">CE2</b><br><span id="mon-phase">Active</span></div>
+            <div class="mon-bl" id="mon-count">1 / 12</div>
+            <div class="mon-br"><span class="mon-rec"></span>LIVE DEMO</div>
+          </div>
+          <div class="mon-strip" id="mon-strip"></div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="seg" role="tablist">
-          <button class="seg-btn active" data-mode="text" role="tab">Scan report</button>
-          <button class="seg-btn" data-mode="checklist" role="tab">Findings checklist</button>
-        </div>
-
-        <div id="mode-text">
-          <div class="samples-row">
-            <span class="muted small">Try a sample:</span>
-            <div id="samples" class="chips"></div>
-          </div>
-          <textarea id="report" rows="7" placeholder="Paste the ultrasound / CT report here, e.g. “6 cm cyst in the right hepatic lobe with a floating membrane (water-lily sign). No daughter cysts.”"></textarea>
-          <div class="row-between">
-            <label class="toggle"><input type="checkbox" id="use-llm" /><span class="track"></span><span class="small">AI report reader (LLM)</span></label>
-            <button id="analyze" class="btn btn-primary">Analyse report</button>
-          </div>
-        </div>
-
-        <div id="mode-checklist" hidden>
-          <p class="muted small">Mark what the scan shows. Leave “?” when the finding was not assessed — the system will tell you what it needs.</p>
-          <div id="checklist" class="checklist"></div>
-        </div>
+      <h2 class="section-title reveal">How it works</h2>
+      <p class="section-sub reveal">From a free-text report to a reviewed, traceable decision in five steps.</p>
+      <div class="flow reveal">
+        <div class="step"><span class="n">1</span><b>Read</b><span>Report text, checklist or voice; findings + source sentences extracted.</span></div>
+        <div class="step"><span class="n">2</span><b>Two judges</b><span>WHO rule engine and an ML model stage the cyst independently.</span></div>
+        <div class="step"><span class="n">3</span><b>Self-doubt</b><span>Disagreement, missing findings or poor images trigger "review required".</span></div>
+        <div class="step"><span class="n">4</span><b>Explain + plan</b><span>Evidence, management options and referral priority, in plain words.</span></div>
+        <div class="step"><span class="n">5</span><b>Doctor decides</b><span>Confirm or override; every decision is logged and builds the cyst's digital twin.</span></div>
       </div>
 
-      <div class="card">
-        <h2 class="card-title">Scan image <span class="muted small">(optional, attached to report)</span></h2>
-        <label id="drop" class="drop">
-          <input type="file" id="image" accept="image/*" hidden />
-          <div id="drop-empty">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4m0 0l-4 4m4-4l4 4"/><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
-            <div>Drop an ultrasound image or <u>browse</u></div>
+      <h2 class="section-title reveal">What's inside</h2>
+      <div class="features" id="features"></div>
+    </section>
+
+    <!-- ======================= ASSESS ======================= -->
+    <section class="view" id="view-assess">
+      <div class="layout">
+        <section class="panel input-panel">
+          <div class="card">
+            <h2 class="card-title"><span class="ico">👤</span>Patient</h2>
+            <div class="grid3">
+              <label class="field"><span>Patient ID</span><input id="p-id" placeholder="e.g. MJ-0142" /></label>
+              <label class="field"><span>Age</span><input id="p-age" type="number" min="0" max="120" placeholder="42" /></label>
+              <label class="field"><span>Sex</span><select id="p-sex"><option value="">–</option><option>F</option><option>M</option><option>Other</option></select></label>
+            </div>
+            <label class="field" style="margin-top:10px"><span>Patient email <span class="muted">(optional, lets the patient see this report in their account)</span></span><input id="p-email" type="email" placeholder="patient@example.com" /></label>
           </div>
-          <img id="preview" alt="Uploaded scan" hidden />
-        </label>
+
+          <div class="card">
+            <div class="seg" role="tablist">
+              <button class="seg-btn active" data-mode="text">Scan report</button>
+              <button class="seg-btn" data-mode="checklist">Findings checklist</button>
+            </div>
+            <div id="mode-text">
+              <div class="samples-row"><span class="muted small">Try a sample report:</span><div id="samples" class="chips"></div></div>
+              <div class="text-tools">
+                <textarea id="report" rows="6" placeholder="Paste or dictate the ultrasound / CT report…"></textarea>
+                <button class="icon-btn" id="mic" title="Dictate the report (voice)" aria-label="Dictate">🎙</button>
+              </div>
+              <div class="row-between">
+                <label class="toggle"><input type="checkbox" id="use-llm" /><span class="track"></span><span class="small">AI report reader (LLM)</span></label>
+                <button id="analyze" class="btn btn-primary">Analyse report</button>
+              </div>
+            </div>
+            <div id="mode-checklist" hidden>
+              <p class="muted small" style="margin-top:0">Mark what the scan shows. Leave “?” when a finding was not assessed — the system will say what it needs.</p>
+              <div id="checklist" class="checklist"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title"><span class="ico">🩺</span>Your independent read <span class="muted small">(optional, blind)</span></h2>
+            <p class="muted small" style="margin:-4px 0 8px">Pick your stage before looking at the AI. The system compares both opinions and explains any disagreement.</p>
+            <div id="doc-stage" class="chips"></div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title"><span class="ico">🖼</span>Scan image · Image AI judge</h2>
+            <label id="drop" class="drop">
+              <input type="file" id="image" accept="image/*" hidden />
+              <div id="drop-empty"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4m0 0l-4 4m4-4l4 4"/><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg><div>Drop an ultrasound image or <u>browse</u></div></div>
+              <img id="preview" alt="Uploaded scan" hidden />
+            </label>
+            <div id="quality" class="quality" hidden></div>
+            <div id="img-judge" class="img-judge" hidden></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div id="empty" class="card empty">
+            <div id="empty-scans" class="scan-wall" hidden></div>
+            <div class="c3d xray" id="empty-3d"><span class="c3d-hint">Drag to rotate</span></div>
+            <h3>No assessment yet</h3>
+            <p class="muted">Paste a report, dictate one, or load a sample. You'll get the stage, the evidence behind it, how sure the system is, and what to do next.</p>
+          </div>
+
+          <div id="results" hidden>
+            <div id="doubt" class="doubt"></div>
+
+            <div class="card hero">
+              <div>
+                <div class="muted small">Predicted WHO-IWGE stage</div>
+                <div class="stage-row"><div id="stage" class="stage-code">–</div><span id="phase" class="phase-pill"></span></div>
+                <div id="rule-line" class="muted"></div>
+                <span id="referral" class="ref-pill"></span>
+              </div>
+              <div class="ring-wrap"><div class="ring" id="ring"><div class="ring-inner"><div id="conf-level">–</div><div class="muted small" id="conf-sub">confidence</div></div></div>
+                <div class="stamp" id="review-stamp" hidden>NEEDS EXPERT<br/>REVIEW</div></div>
+            </div>
+
+            <div class="card">
+              <h2 class="card-title"><span class="ico">🩻</span>X-ray view <span class="muted small">where the cyst is, and what is inside it</span></h2>
+              <div id="scan-view" class="scan-view" hidden>
+                <div class="sv-img"><img id="sv-img" alt="Patient scan" /><span class="sv-tag" id="sv-tag">PATIENT SCAN</span><div class="sv-scanline"></div></div>
+                <div class="sv-side">
+                  <div class="muted small" style="font-weight:600">Patient scan</div>
+                  <div id="sv-title" class="sv-title">–</div>
+                  <div class="ij-sw" id="sv-sw"><button class="on" data-v="scan">Scan</button><button data-v="heat">Heatmap</button></div>
+                  <p id="sv-note" class="small muted"></p>
+                </div>
+              </div>
+              <div class="xray-pair">
+                <div><div class="c3d xray" id="assess-body"><div class="xr-corner">LOCATION<span id="assess-site">–</span></div><span class="c3d-hint">Drag to rotate</span></div><div class="xray-cap">Glowing sphere = the cyst, coloured by phase and scaled to its reported size.</div></div>
+                <div><div class="c3d xray" id="assess-3d"><div class="xr-corner">CYST CLOSE-UP<span id="assess-cstage">–</span></div><span class="c3d-hint">Drag to rotate · scroll to zoom</span></div><div class="xray-cap">Internal structure of this stage with its key signs labelled.</div></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="track-legend small"><span><i class="dot d-cl"></i>Undetermined</span><span><i class="dot d-active"></i>Active</span><span><i class="dot d-trans"></i>Transitional</span><span><i class="dot d-inactive"></i>Inactive</span><span class="muted">· dashed = still possible · click a stage to see it in 3D</span></div>
+              <div id="stage-track" class="stage-track"></div>
+            </div>
+
+            <div class="card">
+              <h2 class="card-title"><span class="ico">🪜</span>WHO sign checklist → stage <span class="muted small">checked in WHO priority order; the first rule whose signs are present decides</span></h2>
+              <div class="sign-legend small"><span><i class="sg yes">✓</i>found</span><span><i class="sg no">✗</i>absent</span><span><i class="sg unk">?</i>not reported</span></div>
+              <div id="sign-ladder" class="ladder"></div>
+            </div>
+
+            <div class="grid2">
+              <div class="card"><h2 class="card-title"><span class="ico">✓</span>Confidence checks</h2><ul id="checks" class="checks"></ul><div id="probs" class="probs"></div></div>
+              <div class="card"><h2 class="card-title"><span class="ico">🔍</span>Why this stage</h2><ul id="evidence" class="evidence"></ul><div id="engine" class="muted small"></div></div>
+            </div>
+
+            <div id="vs-card" class="card" hidden>
+              <h2 class="card-title"><span class="ico">⚖</span>Second opinion: Doctor vs AI</h2>
+              <div class="vs"><div class="side"><span>Doctor</span><b id="vs-doc">–</b></div><div class="mid" id="vs-mid">–</div><div class="side"><span>AI</span><b id="vs-ai">–</b></div></div>
+              <div class="vs-detail" id="vs-detail"></div>
+            </div>
+
+            <div id="report-card" class="card"><h2 class="card-title"><span class="ico">📝</span>Report with supporting sentences highlighted</h2><div id="highlighted" class="highlighted"></div></div>
+
+            <div id="uncertain-card" class="card card-amber"><h2 class="card-title"><span class="ico">?</span>What could change this</h2><ul id="differential" class="plain"></ul><div id="ask-for" class="ask"></div></div>
+
+            <div class="card">
+              <h2 class="card-title"><span class="ico">💊</span>Management options <span class="muted small">for clinician review</span></h2>
+              <div id="treatments" class="treatments"></div>
+              <p id="t-reason" class="muted"></p>
+              <ul id="t-notes" class="notes"></ul>
+              <div class="row-between" style="margin-top:10px"><span class="small muted">Want to see how the options change with size, organ or complications?</span><button class="btn btn-ghost" id="to-whatif">Open in What-if simulator →</button></div>
+            </div>
+
+            <div class="card">
+              <h2 class="card-title"><span class="ico">🧭</span>Stage → treatment → location</h2>
+              <div class="stl">
+                <div><div class="c3d xray stl-3d" id="liver-3d"><div class="xr-corner">LIVER SEGMENTS<span id="liver-seg">–</span></div><span class="c3d-hint">Couinaud segments (schematic) · drag</span></div></div>
+                <div class="flowline" id="flowline"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2 class="card-title"><span class="ico">🏥</span>Stage-based referral <span class="muted small">nearest hospitals that can deliver what this stage needs</span></h2>
+              <div class="ref-grid">
+                <div class="radar-wrap"><svg id="radar" viewBox="-110 -110 220 220"></svg></div>
+                <div><div id="ref-needs" class="small"></div><div id="ref-list" class="ref-list"></div>
+                  <div class="row-between" style="margin-top:8px"><span class="small muted" id="ref-origin"></span><button class="btn btn-ghost" id="use-loc" style="padding:6px 12px">📍 Use my location</button></div>
+                  <div class="small muted" id="ref-disc" style="margin-top:6px"></div></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2 class="card-title"><span class="ico">🔐</span>Patient QR + local-language summary</h2>
+              <div class="share-grid">
+                <div class="qr-stage"><div class="qr-card" id="qr-card"><div class="qr-front"><div class="qr-ph">QR</div><div class="small muted">Generate a secure link</div></div><div class="qr-back"><img id="qr-img" alt="Patient report QR code" /></div></div></div>
+                <div>
+                  <p class="small" style="margin-top:0">Creates an unguessable link (expires in 7 days) to a patient-friendly report: stage, heatmap, confidence and treatment, in <b>English, Hindi, Telugu or Urdu</b>. The patient scans it with their phone (same Wi-Fi as this computer).</p>
+                  <div class="btns"><button class="btn btn-primary" id="make-qr">Generate QR code</button><button class="btn btn-ghost" id="open-share" disabled>Open report</button></div>
+                  <div class="chips" id="share-langs" style="margin-top:10px"></div>
+                  <div class="small muted" id="share-info" style="margin-top:8px;word-break:break-all"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2 class="card-title"><span class="ico">🛂</span>Assessment passport <span class="muted small">traceable record</span></h2>
+              <div id="passport" class="passport"></div>
+            </div>
+
+            <div class="card decision">
+              <h2 class="card-title"><span class="ico">✍</span>Clinician decision</h2>
+              <div class="decision-row">
+                <label class="field"><span>Final stage</span><select id="final-stage"></select></label>
+                <label class="field grow"><span>Note</span><input id="note" placeholder="Optional — reason for agreeing or overriding" /></label>
+              </div>
+              <div class="row-between">
+                <span><span id="decision-status" class="small muted">Not yet confirmed</span><br/><span class="small muted" id="learn-status">Every confirmed decision is added to the model's learning queue.</span></span>
+                <div class="btns">
+                  <button id="retrain" class="btn btn-ghost" title="Retrain the findings model including clinician corrections">🔁 Retrain (<span id="fb-count">0</span>)</button>
+                  <button id="confirm" class="btn btn-primary">Confirm decision</button>
+                  <button id="save-twin" class="btn btn-ghost">Save to digital twin</button>
+                  <button id="pdf" class="btn btn-ghost">PDF report</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </section>
 
-    <!-- ============ RIGHT: RESULTS ============ -->
-    <section class="panel results-panel">
-      <div id="empty" class="card empty">
-        <div class="empty-art" aria-hidden="true">
-          <svg viewBox="0 0 120 80"><rect x="8" y="10" width="104" height="60" rx="10" fill="#E6F4F1"/><circle cx="46" cy="40" r="17" fill="none" stroke="#0F766E" stroke-width="3"/><circle cx="46" cy="40" r="8" fill="none" stroke="#0F766E" stroke-width="3" stroke-dasharray="4 3"/><rect x="72" y="28" width="30" height="6" rx="3" fill="#99D5CB"/><rect x="72" y="40" width="22" height="6" rx="3" fill="#C9E9E3"/></svg>
+    <!-- ======================= 3D EXPLORER ======================= -->
+    <section class="view" id="view-explore">
+      <div class="explorer">
+        <div class="c3d xray ex-3d" id="ex-3d"><span class="c3d-stage" id="ex-badge">CL</span><span class="c3d-hint">Drag to rotate · scroll to zoom</span></div>
+        <div class="card ex-info">
+          <div id="ex-text">
+            <span class="eyebrow" id="ex-phase">Phase</span>
+            <h2 id="ex-title">–</h2>
+            <div class="muted" id="ex-name"></div>
+            <p class="plain-big" id="ex-plain"></p>
+            <div class="small muted" style="font-weight:600">What the scan shows</div>
+            <div class="ex-signs" id="ex-signs"></div>
+            <div class="small"><b>What it means:</b> <span id="ex-means"></span></div>
+            <div class="small" style="margin-top:6px"><b>Typical management:</b> <span id="ex-mgmt"></span></div>
+          </div>
+          <div class="ex-nav">
+            <button class="icon-btn" id="ex-prev" aria-label="Previous stage">←</button>
+            <div class="ex-dots" id="ex-dots"></div>
+            <button class="icon-btn" id="ex-next" aria-label="Next stage">→</button>
+          </div>
+          <div class="ex-controls">
+            <label class="field grow"><span>Cyst size: <b id="ex-size-v">6 cm</b></span><input type="range" id="ex-size" min="1" max="20" step="0.5" value="6" /></label>
+            <label class="toggle"><input type="checkbox" id="ex-xray" checked /><span class="track"></span><span class="small">X-ray</span></label>
+            <label class="toggle"><input type="checkbox" id="ex-notes" checked /><span class="track"></span><span class="small">Labels</span></label>
+            <label class="toggle"><input type="checkbox" id="ex-play" /><span class="track"></span><span class="small">Auto-play</span></label>
+          </div>
+          <div class="lifecycle small">Natural history: <b>CL</b> → <b>CE1</b> → <b>CE2</b> → <b>CE3a</b>/<b>CE3b</b> → <b>CE4</b> → <b>CE5</b> <span>(stages can also revert; illustrative)</span></div>
         </div>
-        <h3>No assessment yet</h3>
-        <p class="muted">Paste a report or load a sample to see the stage, the evidence behind it, how sure the system is, and the management options.</p>
       </div>
+    </section>
 
-      <div id="results" hidden>
-        <!-- Stage hero -->
-        <div class="card hero">
-          <div class="hero-main">
-            <div class="muted small">Predicted WHO-IWGE stage</div>
-            <div class="stage-row">
-              <div id="stage" class="stage-code">CE3a</div>
-              <span id="phase" class="phase-pill">Transitional</span>
-            </div>
-            <div id="rule-line" class="muted"></div>
-          </div>
-          <div class="hero-conf">
-            <div class="ring" id="ring"><div class="ring-inner"><div id="conf-level">High</div><div class="muted small">confidence</div></div></div>
-          </div>
-        </div>
-
-        <!-- Stage track -->
+    <!-- ======================= DIGITAL TWIN ======================= -->
+    <section class="view" id="view-twin">
+      <div class="twin-top">
+        <label class="field"><span>Patient</span><select id="twin-patient"></select></label>
+        <span class="small muted">Every saved assessment becomes a point on the cyst's life history. Save one from the Assess tab with “Save to digital twin”.</span>
+      </div>
+      <div class="card verdict" id="verdict" hidden></div>
+      <div class="timeline" id="timeline"></div>
+      <div class="twin-grid">
         <div class="card">
-          <div class="track-legend small">
-            <span><i class="dot d-cl"></i>Undetermined</span><span><i class="dot d-active"></i>Active</span>
-            <span><i class="dot d-trans"></i>Transitional</span><span><i class="dot d-inactive"></i>Inactive</span>
-          </div>
-          <div id="stage-track" class="stage-track"></div>
+          <h2 class="card-title"><span class="ico">🧬</span>Cyst digital twin <span class="muted small" id="twin-sel"></span></h2>
+          <div class="c3d xray twin-3d" id="twin-3d"><span class="c3d-stage" id="twin-badge">–</span><span class="c3d-hint">Model scales with measured size</span></div>
         </div>
+        <div class="panel">
+          <div class="card"><h2 class="card-title"><span class="ico">📈</span>Size and stage over time</h2><div class="chart" id="chart"></div></div>
+          <div class="card"><h2 class="card-title"><span class="ico">🔁</span>Cyst change report</h2><ul class="changes" id="changes"></ul><div id="twin-illus" style="margin-top:10px"></div></div>
+        </div>
+      </div>
+    </section>
 
-        <div class="grid2">
-          <!-- Checks -->
+    <!-- ======================= WHAT-IF ======================= -->
+    <section class="view" id="view-whatif">
+      <div class="whatif">
+        <div class="card wi-ctrl">
+          <h2 class="card-title" style="margin:0"><span class="ico">🎛</span>What-if clinical simulator</h2>
+          <p class="small muted" style="margin:-8px 0 0">Change one assumption at a time and watch the guideline pathway respond. Shows guideline differences only; it does not predict outcomes.</p>
+          <div><div class="lbl">Stage findings</div><div class="chips" id="wi-stage"></div></div>
+          <div><div class="lbl">Cyst size <b id="wi-size-v">6 cm</b></div><input type="range" id="wi-size" min="1" max="20" step="0.5" value="6" /></div>
+          <div><div class="lbl">Organ</div><div class="seg" id="wi-organ" style="margin:0"><button class="seg-btn active" data-v="liver">Liver</button><button class="seg-btn" data-v="lung">Lung</button><button class="seg-btn" data-v="other">Other</button></div></div>
+          <label class="toggle"><input type="checkbox" id="wi-comp" /><span class="track"></span><span>Complicated (rupture, infection, biliary leak)</span></label>
+          <div class="btns"><button class="btn btn-ghost" id="wi-load">Load current assessment</button><button class="btn btn-ghost" id="wi-reset">Reset</button></div>
+        </div>
+        <div class="panel">
+          <div class="c3d xray wi-3d" id="wi-3d"><span class="c3d-stage" id="wi-badge">–</span><div class="xr-corner">X-RAY<span id="wi-site">LIVER</span></div><span class="c3d-hint">Organ and size update live</span></div>
           <div class="card">
-            <h2 class="card-title">Confidence checks</h2>
-            <ul id="checks" class="checks"></ul>
-            <div id="probs" class="probs"></div>
+            <h2 class="card-title"><span class="ico">🧭</span>Guideline pathway</h2>
+            <div class="pathway" id="pathway"></div>
+            <div id="wi-diff"></div>
           </div>
-          <!-- Evidence -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= KNOWLEDGE GRAPH ======================= -->
+    <section class="view" id="view-graph">
+      <div class="graph-wrap">
+        <div class="c3d graph-3d" id="graph-3d"><span class="c3d-hint">Click a node · drag to rotate · scroll to zoom</span></div>
+        <div class="panel">
           <div class="card">
-            <h2 class="card-title">Why this stage</h2>
-            <ul id="evidence" class="evidence"></ul>
-            <div id="engine" class="muted small"></div>
+            <h2 class="card-title"><span class="ico">🕸</span>Clinical knowledge graph</h2>
+            <p class="small muted" style="margin-top:-6px">Every link is a rule the engine actually uses: ultrasound sign → stage → phase → management.</p>
+            <div class="legend"><span><i style="background:#8b5cf6"></i>Ultrasound sign</span><span><i style="background:#0f766e"></i>Stage (coloured by phase)</span><span><i style="background:#d97706"></i>Phase</span><span><i style="background:#2563eb"></i>Management option</span></div>
           </div>
+          <div class="card g-info" id="g-info"><div class="muted">Click any node to light up everything it connects to.</div></div>
+          <div class="card"><h2 class="card-title"><span class="ico">📚</span>Guideline sources</h2><div id="g-guides" class="small"></div></div>
         </div>
-
-        <div id="report-card" class="card">
-          <h2 class="card-title">Report with supporting sentences highlighted</h2>
-          <div id="highlighted" class="highlighted"></div>
-        </div>
-
-        <div id="uncertain-card" class="card card-amber">
-          <h2 class="card-title">What could change this</h2>
-          <ul id="differential" class="plain"></ul>
-          <div id="ask-for" class="ask"></div>
-        </div>
-
-        <div class="card">
-          <h2 class="card-title">Management options <span class="muted small">for clinician review</span></h2>
-          <div id="treatments" class="treatments"></div>
-          <p id="t-reason" class="muted"></p>
-          <ul id="t-notes" class="notes"></ul>
-        </div>
-
-        <div class="card decision">
-          <h2 class="card-title">Clinician decision</h2>
-          <div class="decision-row">
-            <label class="field"><span>Final stage</span><select id="final-stage"></select></label>
-            <label class="field grow"><span>Note</span><input id="note" placeholder="Optional — reason for agreeing or overriding" /></label>
-          </div>
-          <div class="row-between">
-            <span id="decision-status" class="small muted">Not yet confirmed</span>
-            <div class="btns">
-              <button id="confirm" class="btn btn-primary">Confirm decision</button>
-              <button id="pdf" class="btn btn-ghost">Download PDF report</button>
-            </div>
-          </div>
+      </div>
+    </section>
+    <!-- ======================= MY REPORTS (patients) ======================= -->
+    <section class="view" id="view-reports">
+      <div class="row-between" style="margin-bottom:14px"><div><h2 style="margin:0;font-size:24px">My reports</h2><div class="muted small">Your hydatid cyst assessments, explained in plain language. Always discuss them with your doctor.</div></div></div>
+      <div id="rep-empty" class="card empty" hidden><h3>No reports yet</h3><p class="muted">When your doctor saves an assessment with your email address, it will appear here.</p></div>
+      <div class="timeline" id="rep-list"></div>
+      <div class="twin-grid" id="rep-detail" hidden>
+        <div class="card"><h2 class="card-title"><span class="ico">🩻</span>Your cyst in 3D</h2><div class="c3d xray twin-3d" id="rep-3d"><span class="c3d-stage" id="rep-badge">–</span><span class="c3d-hint">Drag to rotate</span></div></div>
+        <div class="panel">
+          <div class="card" id="rep-info"></div>
+          <div class="card"><h2 class="card-title"><span class="ico">💊</span>What your doctor may consider</h2><div id="rep-tx"></div></div>
+          <div class="card" id="rep-scan-card" hidden><h2 class="card-title"><span class="ico">🖼</span>Scan</h2><img id="rep-scan" style="max-width:100%;border-radius:10px" alt="Scan" /></div>
         </div>
       </div>
     </section>
   </main>
 
-  <footer class="foot small muted">
-    CystStage AI · DATANYX'26 MED-02 · Team Decepticons — Decision support only. Outputs are experimental and must be confirmed by a qualified clinician.
-  </footer>
-
+  <footer class="foot small muted">CystStage AI · DATANYX'26 MED-02 · Team Decepticons — Decision support only. Outputs are experimental and must be confirmed by a qualified clinician.</footer>
   <div id="toast" class="toast" hidden></div>
-  <script src="/static/app.js"></script>
+  <script type="module" src="/static/app.js"></script>
 </body>
 </html>

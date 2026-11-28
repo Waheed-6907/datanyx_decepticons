@@ -58,6 +58,17 @@ def keyword_extract(text):
                 case["organ"], ev["organ"] = "liver", sent
             elif re.search(r"lung|pulmonary|thorax|chest", low):
                 case["organ"], ev["organ"] = "lung", sent
+        if case.get("segment") is None:
+            ms = re.search(r"segment\s*(viii|vii|vi|iv|v|iii|ii|i|[1-8])\b", low)
+            if ms:
+                roman = {"1": "I", "2": "II", "3": "III", "4": "IV", "5": "V", "6": "VI", "7": "VII", "8": "VIII"}
+                v = ms.group(1).upper(); case["segment"] = roman.get(v, v); ev["segment"] = sent
+                if case["organ"] == UNKNOWN:
+                    case["organ"] = "liver"
+            elif re.search(r"right (?:hepatic )?lobe", low):
+                case["segment"], ev["segment"] = "right lobe", sent
+            elif re.search(r"left (?:hepatic )?lobe", low):
+                case["segment"], ev["segment"] = "left lobe", sent
         # implied negatives from 'simple / unilocular / anechoic'
         if re.search(r"unilocular|simple cyst|uniloculated", low):
             for c in ("septations", "daughter_cysts"):
@@ -76,6 +87,7 @@ Return ONLY JSON with these keys:
 Rules: binary clues are "yes", "no" or "unknown" (unknown = report does not say).
 calcification is "none", "partial", "complete" or "unknown". size_cm is the largest
 diameter in cm as a number, or null. organ is "liver", "lung", "other" or "unknown".
+segment is the Couinaud liver segment as a Roman numeral ("I".."VIII"), "right lobe", "left lobe" or null.
 Also return "evidence": an object mapping each non-unknown key to the exact sentence
 from the report that supports it. Never guess; prefer "unknown".
 
@@ -99,7 +111,7 @@ def _llm_call(prompt):
 
 
 def llm_extract(text):
-    keys = BINARY_CLUES + ["calcification", "size_cm", "organ"]
+    keys = BINARY_CLUES + ["calcification", "size_cm", "organ", "segment"]
     raw = _llm_call(LLM_PROMPT.format(keys=", ".join(keys), report=text))
     if raw is None:
         return None

@@ -7,3 +7,4 @@ pandas
 joblib
 fpdf2
 anthropic  # optional, for the LLM report reader
+qrcode[pil]

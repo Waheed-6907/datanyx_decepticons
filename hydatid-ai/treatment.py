@@ -17,8 +17,11 @@ def recommend(stage, size_cm=None, complicated="unknown", organ="unknown"):
         return {"options": ["Surgery (with albendazole cover)"],
                 "reason": "Complicated cysts (rupture, infection, biliary leak) usually need surgery.",
                 "notes": notes}
-    if organ == "lung":
-        notes.append("Lung cyst: PAIR is not used in the lung; surgery is usually preferred.")
+    if organ == "lung" and stage in ("CE1", "CE2", "CE3a", "CE3b"):
+        return {"options": ["Surgery (with albendazole cover)",
+                            f"{ABZ} alone (small cysts / unfit for surgery)"],
+                "reason": f"{stage} in the lung: surgery is usually the treatment of choice.",
+                "notes": ["Lung cyst: PAIR and other puncture techniques are not used in the lung."]}
 
     size_txt = "unknown size"
     if size_cm is not None:

@@ -36,6 +36,7 @@ LABELS = {
     "calcification": "Calcification of the wall",
     "size_cm": "Cyst size (cm)",
     "organ": "Organ",
+    "segment": "Liver segment (Couinaud)",
 }
 
 
@@ -44,4 +45,5 @@ def empty_case():
     case[CALCIFICATION] = UNKNOWN
     case[SIZE] = None
     case[ORGAN] = UNKNOWN
+    case["segment"] = None   # Couinaud liver segment I-VIII (optional)
     return case
