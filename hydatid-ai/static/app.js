@@ -850,7 +850,11 @@ function applyRole() {
   $("#u-avatar").textContent = (p.full_name || p.email || "?").trim()[0].toUpperCase();
   const patient = p.role === "patient";
   $$(".nav button").forEach((b) => { const v = b.dataset.view;
-    b.hidden = patient ? ["assess", "twin", "whatif", "records"].includes(v) : v === "reports"; });
+    b.hidden = patient ? ["assess", "twin", "whatif", "records"].includes(v) : false;
+    if (v === "reports") b.textContent = patient ? "My Reports" : "Reports"; });
+  $("#rep-title").textContent = patient ? "My reports" : "Patient reports";
+  $("#rep-sub").textContent = patient ? "Your hydatid cyst assessments, explained in plain language. Always discuss them with your doctor."
+    : "Every assessment saved to Supabase, newest first. Click a card to open its 3D view and plan.";
   $$("#view-home [data-go=assess]").forEach((b) => (b.dataset.go = patient ? "reports" : "assess"));
   setTimeout(movePill, 50);
 }
