@@ -1,0 +1,7 @@
+streamlit
+xgboost
+scikit-learn
+shap
+pandas
+joblib
+anthropic  # optional
