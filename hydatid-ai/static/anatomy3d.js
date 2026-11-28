@@ -417,6 +417,8 @@ export function createAnatomyViewer(el, opts = {}) {
   function rebuildCyst() {
     cystRoot.clear();
     cyst = buildCyst(stage, cystR, 7);
+    // drawn on top of the translucent lungs, so the cyst reads clearly inside the lobe
+    cyst.traverse((o) => { if (o.isMesh) { o.renderOrder = 10; o.material.depthTest = false; o.material.needsUpdate = true; } });
     cystRoot.add(cyst);
     cystStage = stage; cystRadius = cystR;
   }
