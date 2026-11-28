@@ -2,6 +2,7 @@
 // The cyst is placed where the doctor or the report says it is, and drawn as the WHO stage looks inside.
 import * as THREE from "three";
 import { OrbitControls } from "/static/vendor/OrbitControls.js";
+import { GLTFLoader } from "/static/vendor/GLTFLoader.js";
 
 export const SEG_SEEDS = {
   I: [-0.2, 0.05, -0.36], II: [0.52, 0.18, 0.02], III: [0.56, -0.12, 0.06], IVa: [0.02, 0.22, 0.1], IVb: [0.0, -0.14, 0.16],
@@ -276,7 +277,7 @@ export function createAnatomyViewer(el, opts = {}) {
   floor.rotation.x = -Math.PI / 2; floor.position.y = -1.7; floor.receiveShadow = true; scene.add(floor);
 
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 80);
-  camera.position.set(0, 0.25, opts.distance || 3.7);
+  camera.position.set(0, 0.25, opts.distance || 4.4);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.target.set(-0.12, 0.03, 0); controls.enableDamping = true; controls.enablePan = false;
   controls.minDistance = 2.2; controls.maxDistance = 8; controls.autoRotate = true; controls.autoRotateSpeed = 0.6;
@@ -296,6 +297,7 @@ export function createAnatomyViewer(el, opts = {}) {
   liver.add(vessel([[-0.45, 0.1, 0.05], [-0.22, 0.25, 0.0], [0.0, 0.3, -0.05]], 0.035, 0x1d4ed8));       // hepatic veins
   scene.add(liver);
   const lungs = buildLungs(); scene.add(lungs.group); lungs.group.visible = false;
+  const glbLobes = {}; let glbRoot = null, glbReady = false, lastArgs = null;
 
   const cystRoot = new THREE.Group(); scene.add(cystRoot);
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xfff1c2, transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -311,7 +313,32 @@ export function createAnatomyViewer(el, opts = {}) {
     for (let i = 0; i < pos.count; i++) { const s = liverPack.keys[liverPack.segId[i]]; const a = acc[s] || (acc[s] = [0, 0, 0, 0]);
       a[0] += pos.getX(i); a[1] += pos.getY(i); a[2] += pos.getZ(i); a[3]++; }
     Object.entries(acc).forEach(([s, a]) => (segCentre[s] = new THREE.Vector3(a[0] / a[3], a[1] / a[3], a[2] / a[3]))); }
-  const lobeCentre = (k) => new THREE.Vector3(...LOBE_SEEDS[k]);
+  const lobeCentre = (k) => (glbLobes[k] ? glbLobes[k].centre.clone() : new THREE.Vector3(...LOBE_SEEDS[k]));
+
+  // real lung anatomy (Visible Human female lobes, from NIH 3D, HRA reference organ) when the model loads
+  const LOBE_NODE = { RUL: "VH_F_R_lung_upper_lobe", RML: "VH_F_R_lung_middle_lobe", RLL: "VH_F_R_lung_lower_lobe", LUL: "VH_F_L_lung_upper_lobe", LLL: "VH_F_L_lung_lower_lobe" };
+  const lobeMat = (k, on) => new THREE.MeshPhysicalMaterial({ color: new THREE.Color(on ? "#ffb9a8" : "#e6a197"), roughness: 0.55, sheen: 0.6,
+    sheenColor: new THREE.Color("#ffd6cf"), sheenRoughness: 0.5, clearcoat: 0.2, transparent: true, opacity: on ? 0.78 : 0.62, depthWrite: false,
+    emissive: new THREE.Color(on ? "#4a1a14" : "#000000") });
+  new GLTFLoader().load("/static/models/lung-male-nih.glb", (gltf) => {
+    const root = gltf.scene;
+    root.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(root), size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+    const s = 1.55 / Math.max(size.x, size.y, size.z);
+    root.scale.setScalar(s); root.position.copy(c).multiplyScalar(-s);
+    root.updateMatrixWorld(true);
+    Object.entries(LOBE_NODE).forEach(([k, name]) => {
+      const node = root.getObjectByName(name); if (!node) return;
+      const meshes = [];
+      node.traverse((o) => { if (o.isMesh) { o.material = lobeMat(k, false); o.castShadow = o.receiveShadow = true; o.userData.kind = "lobe"; o.userData.lobe = k; meshes.push(o); } });
+      glbLobes[k] = { meshes, centre: new THREE.Box3().setFromObject(node).getCenter(new THREE.Vector3()) };
+    });
+    // the airways (trachea and bronchi) keep the model's own materials
+    root.traverse((o) => { if (o.isMesh && !o.userData.kind && o.material) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.9; o.material.depthWrite = false; } });
+    glbRoot = root; glbRoot.visible = false; scene.add(glbRoot);
+    glbReady = true; lungs.group.visible = false;
+    if (lastArgs) set(lastArgs);
+  }, undefined, (e) => console.warn("lung model did not load; using the built-in lungs", e));
 
   const hotCol = new THREE.Color("#ffb36b");
   let hotSeg = [];
@@ -328,6 +355,10 @@ export function createAnatomyViewer(el, opts = {}) {
   }
   let hotLobe = null;
   function paintLungs() {
+    if (glbReady) {
+      Object.entries(glbLobes).forEach(([k, d]) => d.meshes.forEach((m) => { m.material.dispose(); m.material = lobeMat(k, k === hotLobe); }));
+      return;
+    }
     Object.entries(lungs.lobes).forEach(([k, m]) => {
       const on = k === hotLobe;
       m.material.emissive = new THREE.Color(on ? "#4a1a14" : "#000000");
@@ -347,9 +378,11 @@ export function createAnatomyViewer(el, opts = {}) {
   const radiusFor = (cm) => Math.min(0.42, Math.max(0.09, (cm || 5) * 0.06));
 
   function set({ organ: o = "liver", stage: st = "CE1", size: sz = 5, segment = null, lobe = null, depth = "central" } = {}) {
+    lastArgs = { organ: o, stage: st, size: sz, segment, lobe, depth };
     organ = o === "lung" ? "lung" : "liver";
     stage = st; size = sz || 5; cystR = radiusFor(size);
-    liver.visible = organ === "liver"; lungs.group.visible = organ === "lung";
+    liver.visible = organ === "liver"; lungs.group.visible = organ === "lung" && !glbReady;
+    if (glbRoot) glbRoot.visible = organ === "lung";
     hotSeg = segment && SEG_SEEDS[segment] ? [segment] : [];
     hotLobe = lobe && LOBE_SEEDS[lobe] ? lobe : null;
     paintLiver(); paintLungs();
@@ -375,7 +408,7 @@ export function createAnatomyViewer(el, opts = {}) {
     const r = renderer.domElement.getBoundingClientRect();
     ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ptr, camera);
-    const objs = organ === "liver" ? [liverPack.mesh] : Object.values(lungs.lobes);
+    const objs = organ === "liver" ? [liverPack.mesh] : (glbReady ? Object.values(glbLobes).flatMap((d) => d.meshes) : Object.values(lungs.lobes));
     const hit = ray.intersectObjects(objs, false)[0];
     if (!hit || !opts.onPick) return;
     if (hit.object.userData.kind === "lobe") return opts.onPick({ organ: "lung", lobe: hit.object.userData.lobe });
