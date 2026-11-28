@@ -54,6 +54,7 @@
       <button data-view="twin">Digital Twin</button>
       <button data-view="whatif">What-if</button>
       <button data-view="graph">Knowledge Graph</button>
+      <button data-view="records">Records</button>
       <button data-view="reports" hidden>My Reports</button>
     </nav>
     <div class="top-badges">
@@ -402,6 +403,13 @@
           <div class="card" id="rep-scan-card" hidden><h2 class="card-title"><span class="ico">🖼</span>Scan</h2><img id="rep-scan" style="max-width:100%;border-radius:10px" alt="Scan" /></div>
         </div>
       </div>
+    </section>
+
+    <!-- ======================= RECORDS (one table per feature, from Supabase) ======================= -->
+    <section class="view" id="view-records">
+      <div class="row-between" style="margin-bottom:14px"><div><h2 style="margin:0;font-size:24px">Records</h2><div class="muted small">Every feature saves to its own table in Supabase. Doctors see all records; patients see only their own.</div></div>
+        <div class="rec-bar"><select id="rec-table" aria-label="Table"></select><button class="btn" id="rec-refresh">Refresh</button><span class="small muted" id="rec-count"></span></div></div>
+      <div class="card rec-card"><div class="rec-out" id="rec-out"></div></div>
     </section>
   </main>
 

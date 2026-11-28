@@ -90,6 +90,53 @@ export async function scanUrl(path) {
   return data?.signedUrl || null;
 }
 
+/* ---------- v2 tables: every feature writes here (see supabase/schema_v2.sql) ---------- */
+export async function saveAnalysis(row) {
+  const { error } = await store.sb.from("analyses").insert({ ...row, created_by: store.user.id });
+  if (error) throw error;
+}
+
+// Stores the CT image in the private 'scans' bucket and one row in ct_scans. imagePred may be null (model not trained).
+export async function saveCtScan(imageDataUrl, meta, imagePred) {
+  const blob = await (await fetch(imageDataUrl)).blob();
+  const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+  const file = `scan-${Date.now()}.${ext}`;
+  const path = `${store.user.id}/${file}`;
+  const up = await store.sb.storage.from("scans").upload(path, blob, { contentType: blob.type });
+  if (up.error) throw up.error;
+  const row = { ...meta, storage_path: path, file_name: file, content_type: blob.type, size_bytes: blob.size,
+    image_stage: imagePred ? imagePred.stage : null, image_prob: imagePred ? imagePred.prob : null,
+    image_probs: imagePred ? imagePred.probs : null, model_version: imagePred ? imagePred.model_used || "CNN" : null };
+  const { error } = await store.sb.from("ct_scans").insert({ ...row, created_by: store.user.id });
+  if (error) throw error;
+  return path;
+}
+
+export async function saveShare(row) {
+  const { error } = await store.sb.from("share_links").insert({ ...row, created_by: store.user.id });
+  if (error) throw error;
+}
+
+export async function savePdf(blob, meta) {
+  const file = `${meta.assessment_code || "report"}-${Date.now()}.pdf`;
+  const path = `${store.user.id}/${file}`;
+  const up = await store.sb.storage.from("reports").upload(path, blob, { contentType: "application/pdf" });
+  if (up.error) throw up.error;
+  const { error } = await store.sb.from("pdf_reports").insert({ ...meta, storage_path: path, file_name: file,
+    size_bytes: blob.size, created_by: store.user.id });
+  if (error) throw error;
+}
+
+// Generic read for the Records view. RLS decides what each user gets back.
+const SORT = { stage_reference: ["sort_order", true], kg_nodes: ["id", true], kg_edges: ["id", true] };
+export const RECORD_TABLES = ["assessments", "analyses", "ct_scans", "share_links", "pdf_reports", "stage_reference", "kg_nodes", "kg_edges"];
+export async function loadTable(name, limit = 200) {
+  const [col, asc] = SORT[name] || ["created_at", false];
+  const { data, error } = await store.sb.from(name).select("*").order(col, { ascending: asc }).limit(limit);
+  if (error) throw error;
+  return data;
+}
+
 export function toTwin(code, rows) {
   const exams = rows.map((r) => ({ date: r.exam_date, case: r.findings, stage: r.ai_stage, confidence: r.ai_confidence,
     final_stage: r.final_stage || r.ai_stage, source: "clinician", doctor: r.doctor_name, note: r.note }));

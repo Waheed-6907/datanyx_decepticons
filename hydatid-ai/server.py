@@ -236,14 +236,35 @@ def _qr_data_url(text):
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
+def _db_share(token):
+    """Hosted fallback: the share row is also stored in Supabase, so links survive a server restart.
+    The get_share_link() function returns the row only while it has not expired."""
+    url, key = _sb_config()
+    if not url or not key:
+        return None
+    import urllib.request
+    req = urllib.request.Request(url.rstrip("/") + "/rest/v1/rpc/get_share_link", method="POST",
+                                 data=json.dumps({"p_token": token}).encode(),
+                                 headers={"apikey": key, "Authorization": "Bearer " + key, "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=8) as r:
+            return json.loads(r.read() or b"null")
+    except Exception:
+        return None
+
+
 @app.get("/api/share/{token}")
 def get_share(token: str):
+    valid = token.replace("-", "").replace("_", "").isalnum()
     path = os.path.join(SHARES, os.path.basename(token) + ".json")
-    if not token.replace("-", "").replace("_", "").isalnum() or not os.path.exists(path):
-        return JSONResponse({"error": "This report link is invalid."}, status_code=404)
-    rec = json.load(open(path))
-    if datetime.datetime.fromisoformat(rec["expires"]) < datetime.datetime.now():
-        return JSONResponse({"error": "This report link has expired. Ask your doctor for a new QR code."}, status_code=410)
+    if valid and os.path.exists(path):
+        rec = json.load(open(path))
+        if datetime.datetime.fromisoformat(rec["expires"]) < datetime.datetime.now():
+            return JSONResponse({"error": "This report link has expired. Ask your doctor for a new QR code."}, status_code=410)
+    else:
+        rec = _db_share(token) if valid else None
+        if not rec:
+            return JSONResponse({"error": "This report link is invalid or has expired."}, status_code=404)
     rec["stage_info"] = knowledge.stage_info().get(rec["result"]["stage"])
     return rec
 

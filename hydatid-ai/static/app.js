@@ -31,7 +31,7 @@ const PRESET = {
   CE4: { ...ALL_NO, solid_matrix: "yes", ball_of_wool: "yes" },
   CE5: { ...ALL_NO, solid_matrix: "yes", ball_of_wool: "yes", calcification: "complete" },
 };
-const VIEWS = ["home", "assess", "explore", "twin", "whatif", "graph", "reports"];
+const VIEWS = ["home", "assess", "explore", "twin", "whatif", "graph", "reports", "records"];
 
 let SCANS = {}, SIM = false, IMG_LABEL = null;
 let META = null, MODE = "text", LAST = null, IMAGE = null, QUALITY = null, DOC_STAGE = null, IMGSTAT = null, IMGPRED = null;
@@ -67,10 +67,11 @@ function setView(name, push = true) {
   if (push) history.replaceState(null, "", "#" + name);
   window.scrollTo({ top: 0, behavior: "smooth" });
   if (S.store.configured && S.store.profile && S.store.profile.role === "patient" && ["assess", "twin", "whatif"].includes(name)) return setView("reports");
-  const init = { explore: initExplorer, twin: initTwin, whatif: initWhatif, graph: initGraph, reports: initReports }[name];
+  const init = { explore: initExplorer, twin: initTwin, whatif: initWhatif, graph: initGraph, reports: initReports, records: initRecords }[name];
   if (init && !inited[name]) { inited[name] = true; requestAnimationFrame(init); }
   if (name === "twin" && inited.twin) loadPatients();
   if (name === "reports" && inited.reports) loadReports();
+  if (name === "records" && inited.records) loadRecords();
   observeReveals();
 }
 function observeReveals() {
@@ -366,12 +367,14 @@ async function runImageJudge() {
   const box = $("#img-judge"); box.hidden = false; IMGPRED = null;
   if (!IMGSTAT || !IMGSTAT.available) {
     box.innerHTML = `<div class="ij-note">🧠 Image AI: not trained.</div>`;
+    persistScan(null);
     return;
   }
   box.innerHTML = `<div class="ij-note">Image AI is reading the scan…</div>`;
   try {
     const r = await getJSON("/api/image", { image_b64: IMAGE });
     IMGPRED = r;
+    persistScan(r);
     const col = HEX[r.stage === "CE3" ? "CE3a" : r.stage], phase = r.stage === "CE3" ? "Transitional" : SHORT_PHASE[r.stage];
     const bars = Object.entries(r.probs).sort((a, b) => b[1] - a[1]).map(([s, p], i) =>
       `<div class="prob ${i === 0 ? "top" : ""}"><span>${s}</span><div class="prob-bar"><i style="width:${(p * 100).toFixed(1)}%"></i></div><span>${(p * 100).toFixed(0)}%</span></div>`).join("");
@@ -387,6 +390,56 @@ async function runImageJudge() {
   } catch (e) { box.innerHTML = `<div class="ij-warn">${esc(e.message)}</div>`; }
 }
 
+/* ---- v2: every feature writes its record to Supabase (no-op in demo mode) ---- */
+const dbOn = () => !!(S.store.configured && S.store.user);
+const dbWarn = (what) => (e) => { console.warn(what + " not saved:", e); toast(`${what} not saved to Supabase: ${e && e.message ? e.message : e}`); };
+const codeNow = () => (LAST && LAST.result && LAST.result.passport ? LAST.result.passport.assessment_id : null);
+const patientNow = () => $("#p-id").value.trim() || null;
+function refreshRecords() { if (current === "records" && inited.records) loadRecords(); }
+
+function persistAnalysis(data) {
+  if (!dbOn()) return;
+  const r = data.result;
+  S.saveAnalysis({ assessment_code: r.passport.assessment_id, patient_code: patientNow(), input_mode: MODE,
+    input_text: MODE === "text" ? $("#report").value : null, case_json: data.case, engine: data.engine, stage: r.stage,
+    confidence: r.confidence, probabilities: r.ml_probs || null, evidence: data.evidence || null, treatment: r.treatment || null,
+    rule_path: { rule: r.rule, checks: r.checks, differential: r.differential, ask_for: r.ask_for } })
+    .then(refreshRecords).catch(dbWarn("analysis"));
+}
+
+// One CT image row per uploaded scan. pred is the image model result, or null while the model is not trained.
+let SCAN_SAVED = null;
+function persistScan(pred) {
+  if (!dbOn() || !IMAGE || SCAN_SAVED === IMAGE) return;
+  SCAN_SAVED = IMAGE;
+  S.saveCtScan(IMAGE, { assessment_code: codeNow(), patient_code: patientNow() }, pred)
+    .then(refreshRecords).catch(dbWarn("scan"));
+}
+
+/* ============================ RECORDS (one table per feature) ============================ */
+function initRecords() {
+  const sel = $("#rec-table");
+  if (!sel.options.length) sel.innerHTML = S.RECORD_TABLES.map((t) => `<option value="${t}">${t}</option>`).join("");
+  sel.onchange = loadRecords;
+  $("#rec-refresh").onclick = loadRecords;
+  loadRecords();
+}
+const recCell = (v) => v === null || v === undefined ? `<span class="muted">–</span>`
+  : typeof v === "object" ? `<code>${esc(JSON.stringify(v)).slice(0, 200)}</code>` : esc(String(v)).slice(0, 200);
+async function loadRecords() {
+  const box = $("#rec-out"), count = $("#rec-count"), name = $("#rec-table").value;
+  if (!S.store.configured) { box.innerHTML = `<p class="muted" style="padding:18px">Connect Supabase to see the saved tables.</p>`; count.textContent = ""; return; }
+  box.innerHTML = `<p class="muted" style="padding:18px">Loading ${esc(name)}…</p>`;
+  try {
+    const rows = await S.loadTable(name);
+    count.textContent = `${rows.length} row${rows.length === 1 ? "" : "s"}${rows.length === 200 ? " (latest 200)" : ""}`;
+    if (!rows.length) { box.innerHTML = `<p class="muted" style="padding:18px">No rows yet. A row appears here after you use the matching feature.</p>`; return; }
+    const cols = Object.keys(rows[0]);
+    box.innerHTML = `<table><thead><tr>${cols.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) =>
+      `<tr>${cols.map((c) => `<td>${recCell(r[c])}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  } catch (e) { box.innerHTML = `<p class="err" style="padding:18px">${esc(e.message)}</p>`; count.textContent = ""; }
+}
+
 /* ---- analyse + render ---- */
 let busy = 0;
 async function analyse() {
@@ -397,6 +450,7 @@ async function analyse() {
     const data = await getJSON("/api/assess", payload());
     if (my !== busy) return;
     LAST = data; SAVED_CODE = null; render(data);
+    persistAnalysis(data);
   } catch (e) { toast(e.message); }
   finally { btn.disabled = false; btn.textContent = "Analyse report"; }
 }
@@ -582,6 +636,7 @@ async function downloadPdf() {
     const blob = await (await api("/api/report", body)).blob();
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
     a.download = `cyststage_${($("#p-id").value || "patient").replace(/\s+/g, "_")}.pdf`; a.click(); URL.revokeObjectURL(a.href);
+    if (dbOn()) S.savePdf(blob, { assessment_code: codeNow(), patient_code: patientNow() }).then(refreshRecords).catch(dbWarn("pdf"));
   } catch (e) { toast(e.message); }
   finally { btn.disabled = false; btn.textContent = "PDF report"; }
 }
@@ -795,7 +850,7 @@ function applyRole() {
   $("#u-avatar").textContent = (p.full_name || p.email || "?").trim()[0].toUpperCase();
   const patient = p.role === "patient";
   $$(".nav button").forEach((b) => { const v = b.dataset.view;
-    b.hidden = patient ? ["assess", "twin", "whatif"].includes(v) : v === "reports"; });
+    b.hidden = patient ? ["assess", "twin", "whatif", "records"].includes(v) : v === "reports"; });
   $$("#view-home [data-go=assess]").forEach((b) => (b.dataset.go = patient ? "reports" : "assess"));
   setTimeout(movePill, 50);
 }
@@ -903,6 +958,13 @@ async function makeQR() {
     SHARE = await getJSON("/api/share", { patient: { id: $("#p-id").value, age: $("#p-age").value, sex: $("#p-sex").value }, case: LAST.case, result: LAST.result,
       heatmap: IMGPRED ? IMGPRED.heatmap : null, image_pred: IMGPRED });
     $("#qr-img").src = SHARE.qr; $("#qr-card").classList.add("flipped");
+    if (dbOn()) {
+      const { heatmap, ...imgPred } = IMGPRED || {};   // heatmap stays out of the database
+      S.saveShare({ token: SHARE.token, assessment_code: codeNow(), patient_id: patientNow(),
+        payload: { patient: { id: $("#p-id").value, age: $("#p-age").value, sex: $("#p-sex").value }, case: LAST.case, result: LAST.result,
+          image_pred: IMGPRED ? imgPred : null },
+        expires_at: new Date(Date.now() + 7 * 864e5).toISOString() }).then(refreshRecords).catch(dbWarn("share link"));
+    }
     $("#open-share").disabled = false; $("#open-share").onclick = () => window.open(SHARE.local_url, "_blank");
     $("#share-info").innerHTML = `Phone link (same Wi-Fi): <a href="${SHARE.local_url}" target="_blank">${esc(SHARE.url)}</a><br/>Expires ${esc(SHARE.expires.replace("T", " "))}`;
     $("#share-langs").innerHTML = [["en", "English"], ["hi", "हिन्दी"], ["te", "తెలుగు"], ["ur", "اردو"]].map(([k, v]) => `<button class="chip" data-l="${k}">${v} summary</button>`).join("");
