@@ -296,7 +296,7 @@ async function renderCareAndMap(root, ctx, last, st, tx, my) {
 }
 
 /* ============================ POINT 2: CONTACT CARD (doctor) ============================ */
-async function renderContact(root, ctx, my) {
+export async function renderContact(root, ctx, my) {
   const { esc, profile } = ctx;
   let dir = [];
   try { dir = await S.hospitalDirectory(); } catch (e) { console.warn("hospitals", e); }

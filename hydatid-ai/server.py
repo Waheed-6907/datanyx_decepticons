@@ -82,6 +82,11 @@ def portal_page():
     return FileResponse(os.path.join(HERE, "static", "portal.html"))
 
 
+@app.get("/profile")
+def profile_page():
+    return FileResponse(os.path.join(HERE, "static", "profile.html"))
+
+
 @app.get("/p/{token}")
 def pass_page(token: str):
     """The page a patient's QR opens. It shows no data until a signed-in clinician is confirmed in the browser."""
