@@ -339,3 +339,14 @@ export function createAnatomyViewer(el, opts = {}) {
   });
   return { set, destroy: () => { renderer.setAnimationLoop(null); renderer.dispose(); el.innerHTML = ""; } };
 }
+
+// what each WHO stage looks like inside, for the patient and the doctor
+export const STAGE_DETAIL = {
+  CL: { title: "Simple cystic lesion", inside: "Clear fluid. No wall or daughter cysts seen yet.", note: "Could be hydatid or another cyst, so it needs confirmation." },
+  CE1: { title: "Unilocular cyst with daughter vesicles", inside: "A fluid-filled cyst with a thick wall and small daughter vesicles inside.", note: "Active stage." },
+  CE2: { title: "Multivesicular (honeycomb) cyst", inside: "Many small cysts packed together inside, like a honeycomb.", note: "Active stage." },
+  CE3a: { title: "Detached membrane (water-lily sign)", inside: "The inner membrane has peeled away and floats in the fluid.", note: "Transitional stage: the cyst is starting to fail." },
+  CE3b: { title: "Multiple detached membranes", inside: "Several torn membranes float in the fluid, with some solid material.", note: "Transitional stage." },
+  CE4: { title: "Solid, inactive cyst", inside: "Mostly solid tissue. The fluid has been replaced.", note: "Inactive stage." },
+  CE5: { title: "Calcified, dead cyst", inside: "The wall and contents have calcified.", note: "Inactive stage: usually no active treatment is needed." },
+};

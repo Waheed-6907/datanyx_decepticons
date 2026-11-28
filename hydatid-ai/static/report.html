@@ -17,7 +17,8 @@
     .flag.bad{background:#FEE4E2;color:#B42318;animation:stampIn .7s cubic-bezier(.22,1,.36,1) both}
     .flag.good{background:#DCFCE7;color:#15803D}
     @keyframes stampIn{0%{transform:scale(1.6) rotate(-8deg);opacity:0}100%{transform:none;opacity:1}}
-    .rp-3d{height:300px}
+    .rp-3d{height:460px;min-height:460px;position:relative;overflow:hidden;border-radius:14px;background:radial-gradient(ellipse at 50% 30%,#1e293b,#0b1220)}
+    .cyst-type{padding:10px 12px;margin-bottom:10px;border-left:4px solid var(--c,#0F766E);background:#F8FAFC;border-radius:10px}
     .facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
     .facts div{background:#F8FAFB;border:1px solid var(--line);border-radius:10px;padding:10px}
     .facts span{display:block;font-size:12px;color:var(--muted)} .facts b{font-size:15px}
@@ -35,7 +36,7 @@
   </div>
   <script type="module">
     import { LANGS, RTL, T, STAGE_TEXT, treatmentKeys, PHASE_KEY } from "/static/i18n.js";
-    import { createCystViewer } from "/static/cyst3d.js";
+    import { createAnatomyViewer, STAGE_DETAIL, SEG_NAME, LOBE_NAME } from "/static/anatomy.js";
     const HEX = { CL: "#64748B", CE1: "#DC4B3E", CE2: "#DC4B3E", CE3a: "#D97706", CE3b: "#D97706", CE4: "#2563EB", CE5: "#2563EB" };
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const token = location.pathname.split("/").pop();
@@ -69,13 +70,17 @@
           <div><span>${t.patient}</span><b>${esc(D.patient.id || "–")}</b></div>
           <div><span>${t.date}</span><b>${esc(D.created.slice(0, 10))}</b></div></div>
         <div class="card"><h2 class="card-title">${t.treatment}</h2><div class="treatments">${tx}</div></div>
-        <div class="card no-print"><h2 class="card-title">${t.model3d}</h2><div class="c3d xray rp-3d" id="rp-3d"></div></div>
+        <div class="card no-print"><h2 class="card-title">${t.model3d}</h2>
+          <div class="cyst-type"><b>${esc((STAGE_DETAIL[st] || {}).title || "")}</b><div class="small">${esc((STAGE_DETAIL[st] || {}).inside || "")}</div><div class="small muted">${esc((STAGE_DETAIL[st] || {}).note || "")}</div></div>
+          <div class="c3d rp-3d" id="rp-3d"></div>
+          <div class="small muted" style="margin-top:6px">The organ and cyst are a schematic model. The highlighted part is where the report places the cyst.</div></div>
         ${D.heatmap ? `<div class="card"><h2 class="card-title">${t.heatmap}</h2><img src="${D.heatmap}" style="max-width:100%;border-radius:10px" alt=""/></div>` : ""}
         <div class="card"><p class="small" style="margin:0 0 8px">${t.disclaimer}</p><p class="small muted" style="margin:0">${t.expires}: ${esc(D.expires.replace("T", " "))} · ID ${esc(res.passport.assessment_id)}</p>
           <button class="btn btn-primary no-print" style="margin-top:12px" onclick="window.print()">${t.print}</button></div>`;
       const b = document.getElementById("body"); b.classList.remove("stagger"); void b.offsetWidth; b.classList.add("stagger");
-      viewer = createCystViewer(document.getElementById("rp-3d"), { xray: true, notes: false, distance: 4.2 });
-      viewer.setStage(st, D.case.size_cm);
+      viewer = createAnatomyViewer(document.getElementById("rp-3d"), { distance: 3.9 });
+      viewer.set({ organ: D.case.organ === "lung" ? "lung" : "liver", stage: st, size: D.case.size_cm,
+        segment: D.case.segment, lobe: D.case.lobe, depth: D.case.depth || "central" });
     }
   </script>
 </body>
