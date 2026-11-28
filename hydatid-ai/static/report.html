@@ -73,7 +73,7 @@
         <div class="card no-print"><h2 class="card-title">${t.model3d}</h2>
           <div class="cyst-type"><b>${esc((STAGE_DETAIL[st] || {}).title || "")}</b><div class="small">${esc((STAGE_DETAIL[st] || {}).inside || "")}</div><div class="small muted">${esc((STAGE_DETAIL[st] || {}).note || "")}</div></div>
           <div class="c3d rp-3d" id="rp-3d"></div>
-          <div class="small muted" style="margin-top:6px">The organ and cyst are a schematic model. The highlighted part is where the report places the cyst. Lung model: NIH 3D Human Reference Atlas reference organ (Visible Human data, National Library of Medicine).</div></div>
+          <div class="small muted" style="margin-top:6px">The organ and cyst are a schematic model. The highlighted part is where the report places the cyst. Lung model: NIH 3D Human Reference Atlas reference organ (Visible Human data, National Library of Medicine). Liver model: NIH 3D Human Reference Atlas reference organ, Liver, Male (Visible Human data).</div></div>
         ${D.heatmap ? `<div class="card"><h2 class="card-title">${t.heatmap}</h2><img src="${D.heatmap}" style="max-width:100%;border-radius:10px" alt=""/></div>` : ""}
         <div class="card"><p class="small" style="margin:0 0 8px">${t.disclaimer}</p><p class="small muted" style="margin:0">${t.expires}: ${esc(D.expires.replace("T", " "))} · ID ${esc(res.passport.assessment_id)}</p>
           <button class="btn btn-primary no-print" style="margin-top:12px" onclick="window.print()">${t.print}</button></div>`;

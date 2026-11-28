@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "/static/vendor/OrbitControls.js";
 import { GLTFLoader } from "/static/vendor/GLTFLoader.js";
+import { STLLoader } from "/static/vendor/STLLoader.js";
 
 export const SEG_SEEDS = {
   I: [-0.2, 0.05, -0.36], II: [0.52, 0.18, 0.02], III: [0.56, -0.12, 0.06], IVa: [0.02, 0.22, 0.1], IVb: [0.0, -0.14, 0.16],
@@ -297,6 +298,49 @@ export function createAnatomyViewer(el, opts = {}) {
   liver.add(vessel([[-0.45, 0.1, 0.05], [-0.22, 0.25, 0.0], [0.0, 0.3, -0.05]], 0.035, 0x1d4ed8));       // hepatic veins
   scene.add(liver);
   const lungs = buildLungs(); scene.add(lungs.group); lungs.group.visible = false;
+  // real liver shape (NIH 3D Liver, Male, Visible Human; STL mesh). Replaces the built-in liver when it loads.
+  new STLLoader().load("/static/models/liver-male-nih.stl", (geo) => {
+    geo.computeBoundingBox();
+    const bb = geo.boundingBox, size = bb.getSize(new THREE.Vector3()), c = bb.getCenter(new THREE.Vector3());
+    // long axis -> x (patient's right is negative x), middle -> z, short -> y, then fit to the built-in liver's frame
+    const order = [0, 1, 2].sort((a, b) => [size.x, size.y, size.z][b] - [size.x, size.y, size.z][a]);
+    const k = 1.9 / size.x;
+    const p = geo.attributes.position, n = p.count, v = new THREE.Vector3(), out = new Float32Array(n * 3);
+    const sub = [c.x, c.y, c.z];
+    for (let i = 0; i < n; i++) {
+      v.fromBufferAttribute(p, i);
+      const src = [v.x - sub[0], v.y - sub[1], v.z - sub[2]];
+      out[i * 3] = src[order[0]] * k * -1; out[i * 3 + 1] = src[order[2]] * k; out[i * 3 + 2] = src[order[1]] * k;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(out, 3));
+    g.computeVertexNormals();
+    const segId = new Float32Array(n), keys = liverPack.keys, colors = new Float32Array(n * 3), q = new THREE.Vector3(), col = new THREE.Color();
+    const base = new THREE.Color("#7a2f25"), dark = new THREE.Color("#3a1210"), warm = new THREE.Color("#a84d3c");
+    for (let i = 0; i < n; i++) {
+      q.fromArray(out, i * 3);
+      let best = 0, bd = 1e9;
+      keys.forEach((kk, j) => { const sd = SEG_SEEDS[kk], dd = (q.x - sd[0]) ** 2 + (q.y - sd[1]) ** 2 + (q.z - sd[2]) ** 2; if (dd < bd) { bd = dd; best = j; } });
+      segId[i] = best;
+      const mot = 0.5 + 0.5 * fbm(q.x * 3, q.y * 3, q.z * 3, 9, 3);
+      col.copy(base).lerp(warm, Math.max(0, mot - 0.5) * 0.8).lerp(dark, grooveAt(q) * 0.55);
+      colors[i * 3] = col.r; colors[i * 3 + 1] = col.g; colors[i * 3 + 2] = col.b;
+    }
+    g.setAttribute("segId", new THREE.BufferAttribute(segId, 1));
+    g.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    liverPack.mesh.geometry.dispose();
+    liverPack.mesh.geometry = g;
+    liverPack.segId = segId; liverPack.orig = Float32Array.from(colors);
+    liver.children.forEach((ch) => { if (ch !== liverPack.group) ch.visible = false; });
+    Object.keys(segCentre).forEach((kk) => delete segCentre[kk]);
+    Object.keys(SEG_SEEDS).forEach((kk) => {
+      let sx = 0, sy = 0, sz = 0, cnt = 0;
+      for (let i = 0; i < n; i++) if (keys[segId[i]] === kk) { sx += out[i * 3]; sy += out[i * 3 + 1]; sz += out[i * 3 + 2]; cnt++; }
+      if (cnt) segCentre[kk] = new THREE.Vector3(sx / cnt, sy / cnt, sz / cnt);
+    });
+    paintLiver();
+    if (lastArgs) set(lastArgs);
+  }, undefined, (e) => console.warn("liver model did not load; using the built-in liver", e));
   const glbLobes = {}; let glbRoot = null, glbReady = false, lastArgs = null;
 
   const cystRoot = new THREE.Group(); scene.add(cystRoot);
