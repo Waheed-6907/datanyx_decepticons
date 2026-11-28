@@ -196,8 +196,9 @@ function buildTorso() {
 function buildCyst(stage, r, seed) {
   const g = new THREE.Group(), rnd = rngOf(seed);
   const fluid = new THREE.MeshPhysicalMaterial({ color: 0xeaf7ff, transmission: 0.92, roughness: 0.03, thickness: r * 2, ior: 1.36,
-    attenuationColor: new THREE.Color("#f3e7b0"), attenuationDistance: r * 3, specularIntensity: 1, clearcoat: 1 });
-  const wall = new THREE.MeshPhysicalMaterial({ color: 0xf6f3ea, roughness: 0.55, bumpMap: tissueTexture("lung"), bumpScale: 1.5,
+    attenuationColor: new THREE.Color("#f3e7b0"), attenuationDistance: r * 3, specularIntensity: 1, clearcoat: 1,
+    emissive: new THREE.Color("#4a6b7a"), emissiveIntensity: 0.55 });
+  const wall = new THREE.MeshPhysicalMaterial({ color: 0xf6f3ea, roughness: 0.55, emissive: new THREE.Color("#3a4a50"), emissiveIntensity: 0.35, bumpMap: tissueTexture("lung"), bumpScale: 1.5,
     transparent: true, opacity: 0.92, sheen: 0.5, sheenColor: new THREE.Color("#ffffff") });
   const cream = new THREE.MeshPhysicalMaterial({ color: 0xf2e6c6, roughness: 0.6, transparent: true, opacity: 0.92, side: THREE.DoubleSide, sheen: 0.4 });
   const membrane = new THREE.MeshPhysicalMaterial({ color: 0xf7f1dc, roughness: 0.82, transparent: true, opacity: 0.72, side: THREE.DoubleSide, sheen: 0.8, sheenColor: new THREE.Color("#fffbe8") });
@@ -344,7 +345,7 @@ export function createAnatomyViewer(el, opts = {}) {
   const glbLobes = {}; let glbRoot = null, glbReady = false, lastArgs = null;
 
   const cystRoot = new THREE.Group(); scene.add(cystRoot);
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xfff1c2, transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending }));
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xfff1c2, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending }));
   scene.add(glow);
 
   const labels = {};
@@ -480,7 +481,7 @@ export function createAnatomyViewer(el, opts = {}) {
     cystPos.lerp(target, 0.12); cystRoot.position.copy(cystPos);
     cystRoot.scale.setScalar(1 + 0.02 * Math.sin(t * 2.2));
     glow.position.copy(cystPos); glow.scale.setScalar(cystR * 4.2 * (1 + 0.06 * Math.sin(t * 3)));
-    glow.material.opacity = 0.3 + 0.12 * Math.sin(t * 3);
+    glow.material.opacity = 0.5 + 0.2 * Math.sin(t * 3);
     const w = el.clientWidth, h = el.clientHeight;
     const showLabels = (list, prefix, centres) => list.forEach((k) => {
       const d = labels[prefix + k]; const c = centres(k);
