@@ -34,7 +34,9 @@ def assess(case):
     if ml_stage and ml_stage != stage:
         differential.append(f"ML model leans {ml_stage} ({ml_prob:.0%}); rules say {stage}.")
     for alt in rule["alternatives"]:
-        differential.append(f"Could be {alt['stage']} if {', '.join(alt['if_present'])} is present.")
+        names = [c.replace("_", " ") for c in alt["if_present"]]
+        verb = "are" if len(names) > 1 else "is"
+        differential.append(f"Could be {alt['stage']} if {' and '.join(names)} {verb} present.")
 
     return {
         "stage": stage,

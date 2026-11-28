@@ -1,7 +1,9 @@
-streamlit
+fastapi
+uvicorn
 xgboost
 scikit-learn
 shap
 pandas
 joblib
-anthropic  # optional
+fpdf2
+anthropic  # optional, for the LLM report reader

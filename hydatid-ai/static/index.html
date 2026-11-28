@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CystStage AI · Hydatid cyst staging</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230F766E'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='white' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='white'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="16" cy="16" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-dasharray="3 2.4"/><circle cx="16" cy="16" r="2" fill="currentColor"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">CystStage <span>AI</span></div>
+        <div class="brand-sub">Evidence-based hydatid cyst staging · WHO-IWGE</div>
+      </div>
+    </div>
+    <div class="top-badges">
+      <span class="badge" id="model-badge">Loading…</span>
+      <span class="badge badge-warn">Experimental · clinician review required</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ============ LEFT: INPUT ============ -->
+    <section class="panel input-panel">
+      <div class="card">
+        <h2 class="card-title">Patient</h2>
+        <div class="grid3">
+          <label class="field"><span>Patient ID</span><input id="p-id" placeholder="e.g. MJ-0142" /></label>
+          <label class="field"><span>Age</span><input id="p-age" type="number" min="0" max="120" placeholder="42" /></label>
+          <label class="field"><span>Sex</span>
+            <select id="p-sex"><option value="">–</option><option>F</option><option>M</option><option>Other</option></select>
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="seg" role="tablist">
+          <button class="seg-btn active" data-mode="text" role="tab">Scan report</button>
+          <button class="seg-btn" data-mode="checklist" role="tab">Findings checklist</button>
+        </div>
+
+        <div id="mode-text">
+          <div class="samples-row">
+            <span class="muted small">Try a sample:</span>
+            <div id="samples" class="chips"></div>
+          </div>
+          <textarea id="report" rows="7" placeholder="Paste the ultrasound / CT report here, e.g. “6 cm cyst in the right hepatic lobe with a floating membrane (water-lily sign). No daughter cysts.”"></textarea>
+          <div class="row-between">
+            <label class="toggle"><input type="checkbox" id="use-llm" /><span class="track"></span><span class="small">AI report reader (LLM)</span></label>
+            <button id="analyze" class="btn btn-primary">Analyse report</button>
+          </div>
+        </div>
+
+        <div id="mode-checklist" hidden>
+          <p class="muted small">Mark what the scan shows. Leave “?” when the finding was not assessed — the system will tell you what it needs.</p>
+          <div id="checklist" class="checklist"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">Scan image <span class="muted small">(optional, attached to report)</span></h2>
+        <label id="drop" class="drop">
+          <input type="file" id="image" accept="image/*" hidden />
+          <div id="drop-empty">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4m0 0l-4 4m4-4l4 4"/><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
+            <div>Drop an ultrasound image or <u>browse</u></div>
+          </div>
+          <img id="preview" alt="Uploaded scan" hidden />
+        </label>
+      </div>
+    </section>
+
+    <!-- ============ RIGHT: RESULTS ============ -->
+    <section class="panel results-panel">
+      <div id="empty" class="card empty">
+        <div class="empty-art" aria-hidden="true">
+          <svg viewBox="0 0 120 80"><rect x="8" y="10" width="104" height="60" rx="10" fill="#E6F4F1"/><circle cx="46" cy="40" r="17" fill="none" stroke="#0F766E" stroke-width="3"/><circle cx="46" cy="40" r="8" fill="none" stroke="#0F766E" stroke-width="3" stroke-dasharray="4 3"/><rect x="72" y="28" width="30" height="6" rx="3" fill="#99D5CB"/><rect x="72" y="40" width="22" height="6" rx="3" fill="#C9E9E3"/></svg>
+        </div>
+        <h3>No assessment yet</h3>
+        <p class="muted">Paste a report or load a sample to see the stage, the evidence behind it, how sure the system is, and the management options.</p>
+      </div>
+
+      <div id="results" hidden>
+        <!-- Stage hero -->
+        <div class="card hero">
+          <div class="hero-main">
+            <div class="muted small">Predicted WHO-IWGE stage</div>
+            <div class="stage-row">
+              <div id="stage" class="stage-code">CE3a</div>
+              <span id="phase" class="phase-pill">Transitional</span>
+            </div>
+            <div id="rule-line" class="muted"></div>
+          </div>
+          <div class="hero-conf">
+            <div class="ring" id="ring"><div class="ring-inner"><div id="conf-level">High</div><div class="muted small">confidence</div></div></div>
+          </div>
+        </div>
+
+        <!-- Stage track -->
+        <div class="card">
+          <div class="track-legend small">
+            <span><i class="dot d-cl"></i>Undetermined</span><span><i class="dot d-active"></i>Active</span>
+            <span><i class="dot d-trans"></i>Transitional</span><span><i class="dot d-inactive"></i>Inactive</span>
+          </div>
+          <div id="stage-track" class="stage-track"></div>
+        </div>
+
+        <div class="grid2">
+          <!-- Checks -->
+          <div class="card">
+            <h2 class="card-title">Confidence checks</h2>
+            <ul id="checks" class="checks"></ul>
+            <div id="probs" class="probs"></div>
+          </div>
+          <!-- Evidence -->
+          <div class="card">
+            <h2 class="card-title">Why this stage</h2>
+            <ul id="evidence" class="evidence"></ul>
+            <div id="engine" class="muted small"></div>
+          </div>
+        </div>
+
+        <div id="report-card" class="card">
+          <h2 class="card-title">Report with supporting sentences highlighted</h2>
+          <div id="highlighted" class="highlighted"></div>
+        </div>
+
+        <div id="uncertain-card" class="card card-amber">
+          <h2 class="card-title">What could change this</h2>
+          <ul id="differential" class="plain"></ul>
+          <div id="ask-for" class="ask"></div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">Management options <span class="muted small">for clinician review</span></h2>
+          <div id="treatments" class="treatments"></div>
+          <p id="t-reason" class="muted"></p>
+          <ul id="t-notes" class="notes"></ul>
+        </div>
+
+        <div class="card decision">
+          <h2 class="card-title">Clinician decision</h2>
+          <div class="decision-row">
+            <label class="field"><span>Final stage</span><select id="final-stage"></select></label>
+            <label class="field grow"><span>Note</span><input id="note" placeholder="Optional — reason for agreeing or overriding" /></label>
+          </div>
+          <div class="row-between">
+            <span id="decision-status" class="small muted">Not yet confirmed</span>
+            <div class="btns">
+              <button id="confirm" class="btn btn-primary">Confirm decision</button>
+              <button id="pdf" class="btn btn-ghost">Download PDF report</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot small muted">
+    CystStage AI · DATANYX'26 MED-02 · Team Decepticons — Decision support only. Outputs are experimental and must be confirmed by a qualified clinician.
+  </footer>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
