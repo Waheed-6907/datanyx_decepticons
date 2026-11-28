@@ -419,7 +419,7 @@ export function createAnatomyViewer(el, opts = {}) {
     cystRoot.add(cyst);
     cystStage = stage; cystRadius = cystR;
   }
-  const radiusFor = (cm) => Math.min(0.42, Math.max(0.09, (cm || 5) * 0.06));
+  const radiusFor = (cm) => Math.min(0.36, Math.max(0.08, (cm || 5) * 0.05));
 
   function set({ organ: o = "liver", stage: st = "CE1", size: sz = 5, segment = null, lobe = null, depth = "central" } = {}) {
     lastArgs = { organ: o, stage: st, size: sz, segment, lobe, depth };
@@ -433,6 +433,8 @@ export function createAnatomyViewer(el, opts = {}) {
     let p;
     if (organ === "liver") p = hotSeg.length ? segCentre[hotSeg[0]].clone() : new THREE.Vector3(-0.2, 0.0, 0.1);
     else p = hotLobe ? lobeCentre(hotLobe) : new THREE.Vector3(-0.45, 0.0, 0.0);
+    // a named region sits a little inside the organ, so the cyst stays within the tissue rather than poking out
+    if (hotSeg.length || hotLobe) p.multiplyScalar(0.84);
     const outward = p.clone().normalize().multiplyScalar(depth === "superficial" ? 0.13 : depth === "deep" ? -0.12 : 0);
     target = p.add(outward);
     locName = organ === "liver"
