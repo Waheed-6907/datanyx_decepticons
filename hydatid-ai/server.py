@@ -75,6 +75,16 @@ def index():
     return FileResponse(os.path.join(HERE, "static", "index.html"))
 
 
+@app.get("/login")
+def login_page():
+    return FileResponse(os.path.join(HERE, "static", "login.html"))
+
+
+@app.get("/signup")
+def signup_page():
+    return FileResponse(os.path.join(HERE, "static", "signup.html"))
+
+
 def _sb_config():
     url, key = os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_ANON_KEY")
     path = os.path.join(HERE, "supabase_config.json")
