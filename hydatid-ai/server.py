@@ -11,7 +11,7 @@ import threading
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -75,14 +75,17 @@ def index():
     return FileResponse(os.path.join(HERE, "static", "index.html"))
 
 
+@app.get("/doctor")
+@app.get("/patient")
+def portal_page():
+    """Separate sign-in pages: /doctor for clinicians, /patient for patients (portal.js reads the path)."""
+    return FileResponse(os.path.join(HERE, "static", "portal.html"))
+
+
 @app.get("/login")
-def login_page():
-    return FileResponse(os.path.join(HERE, "static", "login.html"))
-
-
 @app.get("/signup")
-def signup_page():
-    return FileResponse(os.path.join(HERE, "static", "signup.html"))
+def old_auth_pages():
+    return RedirectResponse("/doctor")
 
 
 def _sb_config():

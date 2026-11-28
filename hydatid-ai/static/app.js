@@ -2,6 +2,7 @@ import { createCystViewer } from "/static/cyst3d.js";
 import { createGraph } from "/static/graph3d.js";
 import { createBodyViewer, createLiverViewer } from "/static/xray.js";
 import * as S from "/static/store.js";
+import { renderDoctor, renderPatient } from "/static/dashboard.js";
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -72,6 +73,7 @@ function setView(name, push = true) {
   if (name === "twin" && inited.twin) loadPatients();
   if (name === "reports" && inited.reports) loadReports();
   if (name === "records" && inited.records) loadRecords();
+  if (name === "home" && S.store.profile) renderDashboard();
   observeReveals();
 }
 function observeReveals() {
@@ -803,60 +805,48 @@ async function initGraph() {
 }
 
 /* ============================ AUTH ============================ */
-let AUTH_MODE = "in", ROLE = "doctor", authViewer = null;
+let authViewer = null;
+// Signed out, the start page offers two doors: /doctor and /patient (sign-in lives there, see portal.js).
 function showAuth() {
   $("#auth").hidden = false;
   if (!authViewer) authViewer = createBodyViewer($("#auth-3d"), { distance: 5.6, stage: "CE3a", size: 7, organ: "liver" });
 }
 function setupAuth() {
-  $$("#auth-tabs .seg-btn").forEach((b) => (b.onclick = () => {
-    $$("#auth-tabs .seg-btn").forEach((x) => x.classList.remove("active")); b.classList.add("active");
-    AUTH_MODE = b.dataset.t; $("#up-only").hidden = AUTH_MODE !== "up";
-    $("#auth-go").textContent = AUTH_MODE === "up" ? "Create account" : "Sign in";
-    $("#a-pass").autocomplete = AUTH_MODE === "up" ? "new-password" : "current-password";
-    $("#auth-msg").textContent = "";
-    const f = $("#auth-form"); f.classList.remove("slide-up"); void f.offsetWidth; f.classList.add("slide-up");
-  }));
-  $$("#role-pick .role").forEach((b) => (b.onclick = () => {
-    $$("#role-pick .role").forEach((x) => x.classList.remove("on")); b.classList.add("on");
-    ROLE = b.dataset.r; $("#code-row").hidden = ROLE !== "doctor";
-  }));
-  $("#auth-form").onsubmit = async (e) => {
-    e.preventDefault();
-    const msg = $("#auth-msg"), go = $("#auth-go"); msg.className = "small"; msg.textContent = ""; go.disabled = true;
-    try {
-      const email = $("#a-email").value.trim(), password = $("#a-pass").value;
-      if (AUTH_MODE === "in") await S.signIn(email, password);
-      else {
-        const name = $("#a-name").value.trim();
-        if (!name) throw new Error("Please enter your full name");
-        if (ROLE === "doctor" && !$("#a-code").value.trim()) throw new Error("Doctors need the access code from the hospital admin");
-        const out = await S.signUp({ email, password, full_name: name, role: ROLE, doctor_code: $("#a-code").value.trim() });
-        if (out.confirm) { msg.className = "small ok"; msg.textContent = "Account created. Check your email to confirm, then sign in."; go.disabled = false; return; }
-        if (ROLE === "doctor" && S.store.profile.role !== "doctor") toast("Access code not accepted: your account was created as a patient account");
-      }
-      $("#auth").hidden = true; applyRole();
-      setView(S.store.profile.role === "patient" ? "reports" : "assess");
-      toast(`Welcome, ${S.store.profile.full_name || email}`);
-    } catch (err) { msg.className = "small err"; msg.textContent = err.message || String(err); }
-    finally { go.disabled = false; }
-  };
-  $("#signout").onclick = async () => { await S.signOut(); location.hash = "#home"; location.reload(); };
+  $("#signout").onclick = async () => { await S.signOut(); location.href = "/"; };
+}
+// Home screen for the signed-in user: doctors get the triage workspace, patients their journey.
+async function renderDashboard() {
+  const dash = $("#dash"), home = $("#view-home");
+  const signed = S.store.configured && !!S.store.profile;
+  [...home.children].forEach((c) => { if (c !== dash) c.hidden = signed; });
+  dash.hidden = !signed;
+  if (!signed) return;
+  const ctx = { esc, HEX, SHORT_PHASE, META, profile: S.store.profile, go: setView,
+    openTwin: (id) => { TWIN_PICK = id; setView("twin"); } };
+  const draw = S.store.profile.role === "patient" ? renderPatient : renderDoctor;
+  await draw(dash, ctx);
+  $$("#dash [data-go]").forEach((el) => (el.onclick = () => setView(el.dataset.go)));
 }
 function applyRole() {
   const p = S.store.profile; if (!p) return;
   const chip = $("#user-chip"); chip.hidden = false;
-  $("#u-name").textContent = p.full_name || p.email; $("#u-role").textContent = p.role;
+  $("#auth").hidden = true;
+  $("#u-name").textContent = p.full_name || p.email;
+  $("#u-role").textContent = p.role === "patient" ? "Patient" : "Clinician";
   $("#u-avatar").textContent = (p.full_name || p.email || "?").trim()[0].toUpperCase();
   const patient = p.role === "patient";
+  document.body.dataset.role = p.role;
+  // patients: Home (their journey), My Reports, 3D stages. clinicians: the full workspace.
+  const patientNav = ["home", "reports", "explore"];
   $$(".nav button").forEach((b) => { const v = b.dataset.view;
-    b.hidden = patient ? ["assess", "twin", "whatif", "records"].includes(v) : false;
+    b.hidden = patient ? !patientNav.includes(v) : false;
     if (v === "reports") b.textContent = patient ? "My Reports" : "Reports"; });
   $("#rep-title").textContent = patient ? "My reports" : "Patient reports";
   $("#rep-sub").textContent = patient ? "Your hydatid cyst assessments, explained in plain language. Always discuss them with your doctor."
     : "Every assessment saved to Supabase, newest first. Click a card to open its 3D view and plan.";
   $$("#view-home [data-go=assess]").forEach((b) => (b.dataset.go = patient ? "reports" : "assess"));
   setTimeout(movePill, 50);
+  renderDashboard();
 }
 
 /* ============================ MY REPORTS (patient) ============================ */

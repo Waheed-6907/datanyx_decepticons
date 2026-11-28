@@ -137,6 +137,35 @@ export async function loadTable(name, limit = 200) {
   return data;
 }
 
+/* ---------- dashboards (views from supabase/dashboard_views.sql; RLS limits each user to their own rows) ---------- */
+export async function dashboardKpis() {
+  const { data, error } = await store.sb.from("v_doctor_kpis").select("*").maybeSingle();
+  if (error) throw error;
+  return data || {};
+}
+export async function stageMix() {
+  const { data, error } = await store.sb.from("v_stage_mix").select("*");
+  if (error) throw error;
+  return data || [];
+}
+export async function triageQueue(limit = 20) {
+  const { data, error } = await store.sb.from("v_triage_queue").select("*").limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+// patient's own PDFs and CT images, each with a short-lived signed link
+export async function patientFiles() {
+  const [p, c] = await Promise.all([
+    store.sb.from("pdf_reports").select("*").order("created_at", { ascending: false }),
+    store.sb.from("ct_scans").select("*").order("created_at", { ascending: false }),
+  ]);
+  if (p.error) throw p.error;
+  if (c.error) throw c.error;
+  const sign = async (bucket, rows) => Promise.all(rows.map(async (r) => ({
+    ...r, url: (await store.sb.storage.from(bucket).createSignedUrl(r.storage_path, 600)).data?.signedUrl || null })));
+  return { pdfs: await sign("reports", p.data || []), scans: await sign("scans", c.data || []) };
+}
+
 export function toTwin(code, rows) {
   const exams = rows.map((r) => ({ date: r.exam_date, case: r.findings, stage: r.ai_stage, confidence: r.ai_confidence,
     final_stage: r.final_stage || r.ai_stage, source: "clinician", doctor: r.doctor_name, note: r.note }));
