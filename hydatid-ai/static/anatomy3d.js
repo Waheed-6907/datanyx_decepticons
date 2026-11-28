@@ -206,7 +206,7 @@ function buildCyst(stage, r, seed) {
   const add = (geo, mat, p = [0, 0, 0]) => { const m = new THREE.Mesh(geo, mat); m.position.set(...p); m.castShadow = true; g.add(m); return m; };
   const sphere = (rad, seg = 56) => new THREE.SphereGeometry(rad, seg, Math.round(seg * 0.7));
   // soft rim so the edge of every cyst reads clearly against the tissue
-  add(new THREE.SphereGeometry(r * 1.015, 64, 48), new THREE.MeshBasicMaterial({ color: 0xcfeeff, transparent: true, opacity: 0.12, side: THREE.BackSide, depthWrite: false }));
+  add(new THREE.SphereGeometry(r * 1.015, 64, 48), new THREE.MeshBasicMaterial({ color: 0xe6f6ff, transparent: true, opacity: 0.3, side: THREE.BackSide, depthWrite: false }));
   // random points inside a ball, kept apart so vesicles do not overlap
   const pack = (count, rad, spread, tries = 400) => {
     const pts = [];
@@ -362,7 +362,7 @@ export function createAnatomyViewer(el, opts = {}) {
   // real lung anatomy (Visible Human female lobes, from NIH 3D, HRA reference organ) when the model loads
   const LOBE_NODE = { RUL: "VH_F_R_lung_upper_lobe", RML: "VH_F_R_lung_middle_lobe", RLL: "VH_F_R_lung_lower_lobe", LUL: "VH_F_L_lung_upper_lobe", LLL: "VH_F_L_lung_lower_lobe" };
   const lobeMat = (k, on) => new THREE.MeshPhysicalMaterial({ color: new THREE.Color(on ? "#ffb9a8" : "#e6a197"), roughness: 0.55, sheen: 0.6,
-    sheenColor: new THREE.Color("#ffd6cf"), sheenRoughness: 0.5, clearcoat: 0.2, transparent: true, opacity: on ? 0.78 : 0.62, depthWrite: false,
+    sheenColor: new THREE.Color("#ffd6cf"), sheenRoughness: 0.5, clearcoat: 0.2, transparent: true, opacity: on ? 0.5 : 0.36, depthWrite: false,
     emissive: new THREE.Color(on ? "#4a1a14" : "#000000") });
   new GLTFLoader().load("/static/models/lung-male-nih.glb", (gltf) => {
     const root = gltf.scene;
