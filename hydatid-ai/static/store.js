@@ -40,6 +40,23 @@ export async function signUp({ email, password, full_name, role, doctor_code }) 
   return { confirm: false };
 }
 
+/* ---------- care team (point 2): contact details, hospital directory ---------- */
+export async function myCareTeam() {
+  const { data, error } = await store.sb.rpc("my_care_team");
+  if (error) throw error;
+  return data || [];
+}
+export async function hospitalDirectory() {
+  const { data, error } = await store.sb.from("hospitals").select("*").order("name");
+  if (error) throw error;
+  return data || [];
+}
+export async function updateMyProfile(fields) {
+  const { error } = await store.sb.from("profiles").update(fields).eq("id", store.user.id);
+  if (error) throw error;
+  Object.assign(store.profile, fields);
+}
+
 // true when the clinician access code is valid and unused up. Does not use the code up (the sign-up does).
 export async function checkAccessCode(code) {
   const { data, error } = await store.sb.rpc("check_access_code", { p_code: code });

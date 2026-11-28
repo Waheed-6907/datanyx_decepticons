@@ -2,6 +2,7 @@
 // Doctors: a triage workspace (who needs attention first, the numbers, stage mix).
 // Patients: a plain-language journey (where the cyst is, what changed, what to ask, their files).
 import * as S from "/static/store.js";
+import { mountMap } from "/static/map.js";
 
 const ORDER = ["CL", "CE1", "CE2", "CE3a", "CE3b", "CE4", "CE5"];
 const PRI = { 1: ["Urgent", "pri-1"], 2: ["Review", "pri-2"], 3: ["Treat", "pri-3"], 4: ["Follow-up", "pri-4"] };
@@ -16,15 +17,19 @@ const fmt = (d) => d ? new Date(String(d).length <= 10 ? d + "T00:00:00" : d)
   .toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "–";
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? "morning" : h < 17 ? "afternoon" : "evening"; };
 const loading = (root) => (root.innerHTML = `<div class="dash-loading muted">Loading…</div>`);
+// each render gets a number; a render that is no longer the latest stops, so sections are never added twice
+let SEQ = 0;
 const fail = (root, esc, e) => (root.innerHTML = `<div class="card"><p class="err">Could not load this screen: ${esc(e.message || e)}</p></div>`);
 
 /* ============================ DOCTOR ============================ */
 export async function renderDoctor(root, ctx) {
   const { esc, HEX, go, openTwin, profile } = ctx;
   loading(root);
+  const my = ++SEQ;
   let k, mix, q;
   try { [k, mix, q] = await Promise.all([S.dashboardKpis(), S.stageMix(), S.triageQueue(20)]); }
   catch (e) { return fail(root, esc, e); }
+  if (my !== SEQ) return;
   const kpi = (label, val, sub, tone = "") =>
     `<div class="kpi ${tone}"><div class="kpi-v">${val ?? 0}</div><div class="kpi-l">${label}</div><div class="kpi-s">${sub}</div></div>`;
   const top = Math.max(1, ...mix.map((m) => m.patients));
@@ -82,15 +87,18 @@ export async function renderDoctor(root, ctx) {
     </div>`;
   root.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => go(b.dataset.go)));
   root.querySelectorAll("[data-open]").forEach((b) => (b.onclick = () => openTwin(b.dataset.open)));
+  await renderContact(root, ctx, my);
 }
 
 /* ============================ PATIENT ============================ */
 export async function renderPatient(root, ctx) {
   const { esc, META, HEX, SHORT_PHASE, go, profile } = ctx;
   loading(root);
+  const my = ++SEQ;
   let rows, files;
   try { [rows, files] = await Promise.all([S.myReports(), S.patientFiles()]); }
   catch (e) { return fail(root, esc, e); }
+  if (my !== SEQ) return;
   const first = (profile.full_name || "").split(" ")[0] || "there";
   if (!rows.length) {
     root.innerHTML = `
@@ -173,4 +181,160 @@ export async function renderPatient(root, ctx) {
         </div>` : `<p class="muted small">Your doctor will add reports and scans here.</p>`}
       </div>
     </div>`;
+  await renderCareAndMap(root, ctx, last, st, tx, my);
+}
+
+/* ============================ POINT 2: CARE TEAM + HOSPITAL MAP (patient) ============================ */
+const STAGE_NEEDS = { CL: "a confirmatory scan", CE1: "albendazole and drainage planning", CE2: "albendazole and drainage planning",
+  CE3a: "albendazole and PAIR or surgery planning", CE3b: "surgery or PAIR planning", CE4: "follow-up imaging", CE5: "follow-up imaging" };
+const CAP_NAME = { ultrasound: "Ultrasound", medicine: "Albendazole (physician)", interventional_radiology: "PAIR / drainage",
+  hepatobiliary_surgery: "Liver surgery", thoracic_surgery: "Chest surgery", ct_mri: "CT / MRI", emergency: "24x7 emergency" };
+
+function getPosition() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 6000, maximumAge: 300000 });
+  });
+}
+
+const escText = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const tel = (n) => (n ? `<a href="tel:${String(n).replace(/[^+\d]/g, "")}">${escText(n)}</a>` : null);
+
+let MAP_CTRL = null;
+async function renderCareAndMap(root, ctx, last, st, tx, my) {
+  const { esc } = ctx;
+  let team = [];
+  try { team = await S.myCareTeam(); } catch (e) { console.warn("care team", e); }
+  if (my !== SEQ) return;
+  const careHtml = team.length ? team.map((d) => {
+    const phones = [d.hospital_phone && `Hospital: ${tel(d.hospital_phone)}`, d.clinic_phone && `Clinic: ${tel(d.clinic_phone)}`].filter(Boolean);
+    return `<div class="team-row">
+      <div class="avatar big">${esc((d.doctor_name || "D")[0].toUpperCase())}</div>
+      <div class="team-info">
+        <b>${esc(d.doctor_name || "Your doctor")}</b>
+        <div class="small muted">${esc(d.specialty || "")}${d.city ? " · " + esc(d.city) : ""}</div>
+        ${d.hospital_name ? `<div class="small"><b>${esc(d.hospital_name)}</b></div>` : ""}
+        ${phones.length ? `<div class="small">${phones.join(" · ")}</div>`
+          : `<div class="small muted">Your doctor has not shared a phone number yet. Use the map to find the hospital and ask at reception.</div>`}
+        ${d.email ? `<div class="small"><a href="mailto:${esc(d.email)}">Email ${esc(d.email)}</a></div>` : ""}
+        <div class="small muted">Last exam with you: ${fmt(d.last_exam)}</div>
+      </div></div>`;
+  }).join("") : `<p class="muted small">No doctor is linked to your account yet. Once a doctor saves an assessment with your email, their details appear here.</p>`;
+
+  root.insertAdjacentHTML("beforeend", `
+    <div class="dash-grid care-grid">
+      <div class="card"><h3 class="card-h">Your care team</h3>
+        <p class="small muted" style="margin-top:0">Who to contact about your cyst. Doctors choose what they share.</p>${careHtml}</div>
+      <div class="card"><h3 class="card-h">What your next step needs</h3>
+        <p class="small">Your stage (<b>${esc(st)}</b>) usually means <b>${esc(STAGE_NEEDS[st] || "a review with your doctor")}</b>.</p>
+        <p class="small muted">The hospitals on the map are ranked by whether they offer what this needs, then by distance.</p>
+        <div class="kpi-s" id="route-why"></div></div>
+    </div>
+    <div class="card map-card">
+      <div class="map-head"><div><h3 class="card-h">Hospitals near you</h3>
+        <p class="small muted" id="map-note">Finding your location…</p></div>
+        <button class="btn" id="loc-btn">📍 Use my location</button></div>
+      <div class="map-grid"><div id="pt-map" class="map"></div><div class="hlist" id="hlist"><div class="muted small">Loading hospitals…</div></div></div>
+      <p class="small muted map-foot">Capabilities come from a demo directory and must be confirmed with each hospital before you travel. Distances are straight-line. Map data © OpenStreetMap contributors.</p>
+    </div>`);
+
+  const alreadyBy = team.map((d) => d.hospital_name).filter(Boolean);
+  const complicated = last.case && String(last.case.complicated || "").toLowerCase() === "yes" ? "yes" : "no";
+  const organ = (last.case && last.case.organ && last.case.organ !== "unknown") ? last.case.organ : "liver";
+  async function loadRoute(pos) {
+    const body = { stage: st, options: tx.options || [], organ, complicated, ...(pos || {}) };
+    const r = await fetch("/api/hospitals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error("Could not load hospitals");
+    return r.json();
+  }
+  const pos = await getPosition();
+  let route;
+  try { route = await loadRoute(pos); }
+  catch (e) { $$note("Could not load hospitals: " + e.message); return; }
+  draw(route, !!pos);
+
+  $("#loc-btn").onclick = async () => {
+    const p = await getPosition();
+    if (!p) return $$note("Location was not allowed. Showing hospitals near the campus instead.");
+    route = await loadRoute(p); draw(route, true);
+  };
+
+  function $(id) { return document.querySelector(id); }
+  function $$note(t) { const n = $("#map-note"); if (n) n.textContent = t; }
+
+  function draw(r, precise) {
+    const hs = r.hospitals.map((h, i) => ({ ...h, id: "h" + i, has: h.has || [],
+      careTeam: alreadyBy.includes(h.name) }));
+    $("#route-why").textContent = r.why || "";
+    $$note(precise ? `Distances from your location. ${hs.filter((h) => h.match).length} hospitals can deliver what you need.`
+      : `Location not shared, so distances are from the campus. Allow location for exact distances.`);
+    if (MAP_CTRL) MAP_CTRL.destroy();
+    const ctrl = mountMap($("#pt-map"), { user: { lat: r.origin.lat, lng: r.origin.lng, label: r.origin.name },
+      hospitals: hs, onSelect: (id) => highlight(id) });
+    MAP_CTRL = ctrl;
+    setTimeout(() => ctrl.resize(), 150);
+    $("#hlist").innerHTML = hs.map((h) => `
+      <div class="hrow ${h.match ? "ok" : ""}" data-id="${h.id}">
+        <div class="hrow-top"><b>${esc(h.name)}</b><span class="dist">${h.distance_km} km</span></div>
+        <div class="small muted">${esc(h.area || "")} · ${esc(h.type || "")}</div>
+        <div class="small">${h.match ? `<span class="pill-ok">Can deliver your care</span>` : `<span class="pill-part">Missing: ${h.missing.map((m) => esc(CAP_NAME[m] || m)).join(", ")}</span>`}
+          ${h.careTeam ? ` <span class="pill-care">Your doctor's hospital</span>` : ""}</div>
+        <div class="hrow-actions"><button class="btn" data-show="${h.id}">Show on map</button>
+          <a class="btn btn-primary" href="${esc(h.maps)}" target="_blank" rel="noopener">Directions</a></div>
+      </div>`).join("");
+    document.querySelectorAll("#hlist [data-show]").forEach((b) => (b.onclick = () => highlight(b.dataset.show)));
+  }
+  function highlight(id) {
+    document.querySelectorAll("#hlist .hrow").forEach((x) => x.classList.toggle("sel", x.dataset.id === id));
+    if (MAP_CTRL) MAP_CTRL.select(id);
+    const row = document.querySelector(`#hlist .hrow[data-id="${id}"]`);
+    if (row) row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+}
+
+/* ============================ POINT 2: CONTACT CARD (doctor) ============================ */
+async function renderContact(root, ctx, my) {
+  const { esc, profile } = ctx;
+  let dir = [];
+  try { dir = await S.hospitalDirectory(); } catch (e) { console.warn("hospitals", e); }
+  if (my !== SEQ) return;
+  const opts = dir.map((h) => `<option value="${esc(h.name)}" ${profile.hospital_name === h.name ? "selected" : ""}>${esc(h.name)}</option>`).join("");
+  root.insertAdjacentHTML("beforeend", `
+    <div class="card contact-card">
+      <div class="row-between"><div><h3 class="card-h">Your contact details for patients</h3>
+        <p class="small muted" style="margin:0">Patients see these on their dashboard, so they can call you directly. Leave a field empty if you do not want to share it.</p></div>
+        <label class="switch"><input type="checkbox" id="c-visible" ${profile.contact_visible !== false ? "checked" : ""}/> <span>Share with my patients</span></label></div>
+      <div class="form-grid">
+        <label class="field"><span>Hospital</span><select id="c-hosp"><option value="">Not listed / other</option>${opts}</select></label>
+        <label class="field"><span>Hospital name (if not listed)</span><input id="c-hosp-other" value="${esc(profile.hospital_name && !dir.some((h) => h.name === profile.hospital_name) ? profile.hospital_name : "")}" placeholder="e.g. District Hospital" /></label>
+        <label class="field"><span>Hospital phone</span><input id="c-hphone" value="${esc(profile.hospital_phone || "")}" placeholder="+91 …" inputmode="tel" /></label>
+        <label class="field"><span>Your clinic phone</span><input id="c-cphone" value="${esc(profile.clinic_phone || "")}" placeholder="+91 …" inputmode="tel" /></label>
+        <label class="field"><span>City</span><input id="c-city" value="${esc(profile.city || "")}" placeholder="Hyderabad" /></label>
+        <label class="field"><span>Specialty</span><input id="c-spec" value="${esc(profile.specialty || "")}" placeholder="Hepatology / hydatid disease" /></label>
+      </div>
+      <div class="row-between" style="margin-top:10px"><span class="small muted" id="c-status"></span>
+        <button class="btn btn-primary" id="c-save">Save contact details</button></div>
+    </div>`);
+  const status = document.getElementById("c-status");
+  document.getElementById("c-save").onclick = async () => {
+    const hospSel = document.getElementById("c-hosp").value;
+    const hospName = hospSel || document.getElementById("c-hosp-other").value.trim() || null;
+    const phone = (v) => (v.trim() || null);
+    const fields = {
+      hospital_name: hospName,
+      hospital_phone: phone(document.getElementById("c-hphone").value),
+      clinic_phone: phone(document.getElementById("c-cphone").value),
+      city: phone(document.getElementById("c-city").value),
+      specialty: phone(document.getElementById("c-spec").value),
+      contact_visible: document.getElementById("c-visible").checked,
+    };
+    try {
+      await S.updateMyProfile(fields);
+      status.textContent = "Saved. Patients will see the new details on their next visit.";
+      status.className = "small ok";
+    } catch (e) { status.textContent = e.message; status.className = "small err"; }
+  };
 }
